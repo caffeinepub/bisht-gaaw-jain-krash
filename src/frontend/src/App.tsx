@@ -119,9 +119,15 @@ const PHOTOS = [
 ];
 
 const EMERGENCY = [
-  { name: "पुलिस", number: "100", icon: "👮", color: "#1565c0" },
-  { name: "एम्बुलेंस", number: "108", icon: "🚑", color: "#c62828" },
-  { name: "अग्निशमन", number: "101", icon: "🚒", color: "#e65100" },
+  { name: "पुलिस", number: "100", icon: "👮", color: "#1565c0", isFixed: true },
+  { name: "एम्बुलेंस", number: "108", icon: "🚑", color: "#c62828", isFixed: true },
+  {
+    name: "अग्निशमन",
+    number: "101",
+    icon: "🚒",
+    color: "#e65100",
+    isFixed: true,
+  },
   { name: "सरपंच", number: "98765-43210", icon: "👳", color: "#2D5016" },
   {
     name: "प्राथमिक स्वास्थ्य केंद्र",
@@ -328,7 +334,25 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 // ─── Page Components ─────────────────────────────────────────────────────────
 
+const INITIAL_QUICK_SERVICES = [
+  { id: 1, label: "राशन कार्ड", icon: "📋" },
+  { id: 2, label: "जन्म प्रमाण", icon: "📜" },
+  { id: 3, label: "आय प्रमाण", icon: "💼" },
+  { id: 4, label: "नरेगा", icon: "⛏️" },
+  { id: 5, label: "पेंशन", icon: "👴" },
+  { id: 6, label: "वृक्षारोपण", icon: "🌳" },
+];
+
 function HomePage() {
+  const [quickServices, setQuickServices] = useState(INITIAL_QUICK_SERVICES);
+  const [qsEditIdx, setQsEditIdx] = useState<number | null>(null);
+  const [qsEditLabel, setQsEditLabel] = useState("");
+  const [qsEditIcon, setQsEditIcon] = useState("");
+  const [qsAddOpen, setQsAddOpen] = useState(false);
+  const [qsNewLabel, setQsNewLabel] = useState("");
+  const [qsNewIcon, setQsNewIcon] = useState("");
+  const [qsNextId, setQsNextId] = useState(7);
+
   return (
     <div className="flex flex-col items-center gap-6 pb-4">
       <div
@@ -413,39 +437,171 @@ function HomePage() {
       </div>
 
       <div className="w-full px-4">
-        <h2
-          className="text-base font-semibold mb-3"
-          style={{ color: "#2D5016" }}
-        >
-          त्वरित सेवाएँ
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold" style={{ color: "#2D5016" }}>
+            त्वरित सेवाएँ
+          </h2>
+          <button
+            type="button"
+            data-ocid="quick_services.open_modal_button"
+            className="text-xs px-2 py-1 rounded-lg font-medium"
+            style={{ background: "#2D5016", color: "white" }}
+            onClick={() => {
+              setQsNewLabel("");
+              setQsNewIcon("");
+              setQsAddOpen(true);
+            }}
+          >
+            + जोड़ें
+          </button>
+        </div>
         <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: "राशन कार्ड", icon: "📋" },
-            { label: "जन्म प्रमाण", icon: "📜" },
-            { label: "आय प्रमाण", icon: "💼" },
-            { label: "नरेगा", icon: "⛏️" },
-            { label: "पेंशन", icon: "👴" },
-            { label: "वृक्षारोपण", icon: "🌳" },
-          ].map((link) => (
+          {quickServices.map((svc, idx) => (
             <div
-              key={link.label}
-              className="flex flex-col items-center gap-1 p-3 rounded-xl card-hover cursor-pointer"
+              key={svc.id}
+              data-ocid={`quick_services.item.${idx + 1}`}
+              className="relative flex flex-col items-center gap-1 p-3 rounded-xl"
               style={{
                 background: "rgba(45,80,22,0.07)",
                 border: "1px solid #c8ddb2",
               }}
             >
-              <span className="text-2xl">{link.icon}</span>
+              <button
+                type="button"
+                data-ocid={`quick_services.edit_button.${idx + 1}`}
+                className="absolute top-1 right-1 text-xs px-1 rounded"
+                style={{ color: "#2D5016", background: "transparent" }}
+                onClick={() => {
+                  setQsEditIdx(idx);
+                  setQsEditLabel(svc.label);
+                  setQsEditIcon(svc.icon);
+                }}
+                title="संपादित करें"
+              >
+                ✏️
+              </button>
+              <button
+                type="button"
+                data-ocid={`quick_services.delete_button.${idx + 1}`}
+                className="absolute top-1 left-1 text-xs px-1 rounded"
+                style={{ color: "#c62828", background: "transparent" }}
+                onClick={() =>
+                  setQuickServices(quickServices.filter((_, i) => i !== idx))
+                }
+                title="हटाएँ"
+              >
+                ✕
+              </button>
+              <span className="text-2xl mt-2">{svc.icon}</span>
               <span
                 className="text-xs text-center"
                 style={{ color: "#2D5016" }}
               >
-                {link.label}
+                {svc.label}
               </span>
             </div>
           ))}
         </div>
+
+        {/* Edit dialog */}
+        <Dialog
+          open={qsEditIdx !== null}
+          onOpenChange={(o) => {
+            if (!o) setQsEditIdx(null);
+          }}
+        >
+          <DialogContent data-ocid="quick_services.dialog">
+            <DialogHeader>
+              <DialogTitle>सेवा संपादित करें</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 mt-2">
+              <div>
+                <Label>आइकन (emoji)</Label>
+                <Input
+                  data-ocid="quick_services.icon.input"
+                  value={qsEditIcon}
+                  onChange={(e) => setQsEditIcon(e.target.value)}
+                  placeholder="जैसे: 📋"
+                />
+              </div>
+              <div>
+                <Label>सेवा का नाम</Label>
+                <Input
+                  data-ocid="quick_services.label.input"
+                  value={qsEditLabel}
+                  onChange={(e) => setQsEditLabel(e.target.value)}
+                  placeholder="सेवा का नाम"
+                />
+              </div>
+              <Button
+                data-ocid="quick_services.save_button"
+                disabled={!qsEditLabel.trim()}
+                onClick={() => {
+                  if (qsEditIdx === null) return;
+                  const updated = [...quickServices];
+                  updated[qsEditIdx] = {
+                    ...updated[qsEditIdx],
+                    label: qsEditLabel.trim(),
+                    icon: qsEditIcon.trim() || updated[qsEditIdx].icon,
+                  };
+                  setQuickServices(updated);
+                  setQsEditIdx(null);
+                }}
+                style={{ background: "#2D5016" }}
+              >
+                सहेजें
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add dialog */}
+        <Dialog open={qsAddOpen} onOpenChange={setQsAddOpen}>
+          <DialogContent data-ocid="quick_services.add.dialog">
+            <DialogHeader>
+              <DialogTitle>नई सेवा जोड़ें</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 mt-2">
+              <div>
+                <Label>आइकन (emoji)</Label>
+                <Input
+                  data-ocid="quick_services.new_icon.input"
+                  value={qsNewIcon}
+                  onChange={(e) => setQsNewIcon(e.target.value)}
+                  placeholder="जैसे: 🏥"
+                />
+              </div>
+              <div>
+                <Label>सेवा का नाम</Label>
+                <Input
+                  data-ocid="quick_services.new_label.input"
+                  value={qsNewLabel}
+                  onChange={(e) => setQsNewLabel(e.target.value)}
+                  placeholder="सेवा का नाम लिखें"
+                />
+              </div>
+              <Button
+                data-ocid="quick_services.add.submit_button"
+                disabled={!qsNewLabel.trim()}
+                onClick={() => {
+                  setQuickServices([
+                    ...quickServices,
+                    {
+                      id: qsNextId,
+                      label: qsNewLabel.trim(),
+                      icon: qsNewIcon.trim() || "📌",
+                    },
+                  ]);
+                  setQsNextId(qsNextId + 1);
+                  setQsAddOpen(false);
+                }}
+                style={{ background: "#2D5016" }}
+              >
+                जोड़ें
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="w-full px-4">
@@ -658,6 +814,9 @@ function MarketPage() {
     phone: "",
   });
   const [nextId, setNextId] = useState(11);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editPrice, setEditPrice] = useState("");
 
   function handleAdd() {
     if (!form.seller.trim() || !form.item.trim() || !form.price.trim()) return;
@@ -680,6 +839,25 @@ function MarketPage() {
 
   function handleDelete(id: number) {
     setPrices((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  function handleEditOpen(row: MarketItem) {
+    setEditId(row.id);
+    setEditPrice(row.price);
+    setEditDialogOpen(true);
+  }
+
+  function handleEditSave() {
+    if (!editPrice.trim() || editId === null) return;
+    setPrices((prev) =>
+      prev.map((p) =>
+        p.id === editId ? { ...p, price: editPrice.trim() } : p,
+      ),
+    );
+    setEditDialogOpen(false);
+    setEditId(null);
+    setEditPrice("");
+    toast.success("भाव अपडेट हुआ!");
   }
 
   return (
@@ -819,6 +997,61 @@ function MarketPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent
+          data-ocid="market.edit_price.dialog"
+          className="mx-4 rounded-2xl"
+        >
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              भाव अपडेट करें
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-1">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नया मूल्य *
+              </Label>
+              <Input
+                data-ocid="market.edit_price.input"
+                placeholder="जैसे: ₹25/किग्रा"
+                value={editPrice}
+                onChange={(e) => setEditPrice(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                data-ocid="market.edit_price.save_button"
+                onClick={handleEditSave}
+                disabled={!editPrice.trim()}
+                className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
+                style={{ background: "#2D5016" }}
+              >
+                सहेजें
+              </button>
+              <button
+                type="button"
+                data-ocid="market.edit_price.cancel_button"
+                onClick={() => setEditDialogOpen(false)}
+                className="flex-1 font-semibold py-2 rounded-xl text-sm border"
+                style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+              >
+                रद्द करें
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div
         className="rounded-2xl overflow-hidden"
         style={{ border: "1px solid #c8ddb2" }}
@@ -890,6 +1123,15 @@ function MarketPage() {
               >
                 {row.change}
               </span>
+              <button
+                type="button"
+                data-ocid={`market.edit_button.${idx + 1}`}
+                onClick={() => handleEditOpen(row)}
+                className="text-xs opacity-60 hover:opacity-100 ml-1"
+                title="भाव बदलें"
+              >
+                ✏️
+              </button>
               {row.isUserAdded && (
                 <button
                   type="button"
@@ -913,6 +1155,31 @@ function MarketPage() {
 }
 
 function ServicesPage() {
+  const [services, setServices] = useState(SERVICES);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editTiming, setEditTiming] = useState("");
+
+  function openEdit(idx: number) {
+    setEditIdx(idx);
+    setEditName(services[idx].name);
+    setEditPhone(services[idx].phone);
+    setEditTiming(services[idx].timing);
+  }
+
+  function saveEdit() {
+    if (editIdx === null) return;
+    setServices((prev) =>
+      prev.map((s, i) =>
+        i === editIdx
+          ? { ...s, name: editName, phone: editPhone, timing: editTiming }
+          : s,
+      ),
+    );
+    setEditIdx(null);
+  }
+
   return (
     <div className="px-4 py-4 flex flex-col gap-3">
       <h2
@@ -924,7 +1191,7 @@ function ServicesPage() {
       >
         सरकारी सेवाएँ
       </h2>
-      {SERVICES.map((svc, idx) => (
+      {services.map((svc, idx) => (
         <Card
           key={svc.name}
           data-ocid={`services.item.${idx + 1}`}
@@ -952,9 +1219,93 @@ function ServicesPage() {
                 ⏰ {svc.timing}
               </p>
             </div>
+            <button
+              type="button"
+              data-ocid={`services.edit_button.${idx + 1}`}
+              onClick={() => openEdit(idx)}
+              className="text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded"
+              title="संपादित करें"
+            >
+              ✏️
+            </button>
           </CardContent>
         </Card>
       ))}
+
+      <Dialog
+        open={editIdx !== null}
+        onOpenChange={(o) => !o && setEditIdx(null)}
+      >
+        <DialogContent
+          data-ocid="services.edit.dialog"
+          className="max-w-sm mx-4"
+        >
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              सेवा संपादित करें
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-2">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नाम
+              </Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                फोन
+              </Label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                समय
+              </Label>
+              <Input
+                value={editTiming}
+                onChange={(e) => setEditTiming(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditIdx(null)}
+              >
+                रद्द करें
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveEdit}
+                style={{ background: "#2D5016" }}
+              >
+                सहेजें
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -984,6 +1335,7 @@ function PhotosPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoProgress, setVideoProgress] = useState(0);
   const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoSizeError, setVideoSizeError] = useState<string | null>(null);
 
   const { data: uploadedPhotos = [] } = useQuery<GalleryPhoto[]>({
     queryKey: ["photos"],
@@ -996,6 +1348,11 @@ function PhotosPage() {
 
   const handleUpload = async () => {
     if (!actor || !uploadTitle.trim() || !uploadFile) return;
+    const maxPhotoSize = 10 * 1024 * 1024; // 10MB
+    if (uploadFile.size > maxPhotoSize) {
+      toast.error("फोटो 10MB से बड़ी नहीं होनी चाहिए। कृपया छोटी फोटो चुनें।");
+      return;
+    }
     setIsUploading(true);
     setUploadProgress(0);
     try {
@@ -1010,8 +1367,14 @@ function PhotosPage() {
       setUploadTitle("");
       setUploadFile(null);
       setUploadProgress(0);
-    } catch (_e) {
-      toast.error("फोटो अपलोड नहीं हो सकी, कृपया पुनः प्रयास करें।");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("Photo upload error:", e);
+      if (msg.includes("size") || msg.includes("large")) {
+        toast.error("फोटो बहुत बड़ी है। 10MB से छोटी फोटो चुनें।");
+      } else {
+        toast.error(`फोटो अपलोड नहीं हो सकी: ${msg.slice(0, 80)}`);
+      }
     } finally {
       setIsUploading(false);
     }
@@ -1035,7 +1398,7 @@ function PhotosPage() {
   });
 
   const handleVideoUpload = async () => {
-    if (!actor || !videoTitle.trim() || !videoFile) return;
+    if (!actor || !videoTitle.trim() || !videoFile || videoSizeError) return;
     setIsVideoUploading(true);
     setVideoProgress(0);
     try {
@@ -1050,8 +1413,11 @@ function PhotosPage() {
       setVideoTitle("");
       setVideoFile(null);
       setVideoProgress(0);
-    } catch (_e) {
-      toast.error("वीडियो अपलोड नहीं हो सका, कृपया पुनः प्रयास करें।");
+      setVideoSizeError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("Video upload error:", e);
+      toast.error(`वीडियो अपलोड नहीं हो सका: ${msg.slice(0, 80)}`);
     } finally {
       setIsVideoUploading(false);
     }
@@ -1063,6 +1429,7 @@ function PhotosPage() {
     setVideoTitle("");
     setVideoFile(null);
     setVideoProgress(0);
+    setVideoSizeError(null);
   };
 
   return (
@@ -1325,8 +1692,34 @@ function PhotosPage() {
               >
                 फोटो चुनें (JPG/PNG/WEBP) *
               </Label>
+              <input
+                ref={fileInputRef}
+                id="upload-file"
+                data-ocid="photos.upload_button"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={isUploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setUploadFile(file);
+                    if (!uploadTitle.trim()) {
+                      setUploadTitle(file.name.replace(/\.[^.]+$/, ""));
+                    }
+                  }
+                }}
+              />
               <label
                 htmlFor="upload-file"
+                onClick={(e) => {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    fileInputRef.current?.click();
+                }}
                 data-ocid="photos.upload.dropzone"
                 className="flex flex-col items-center justify-center gap-2 rounded-xl cursor-pointer transition-all"
                 style={{
@@ -1361,19 +1754,6 @@ function PhotosPage() {
                     </p>
                   </>
                 )}
-                <input
-                  ref={fileInputRef}
-                  id="upload-file"
-                  data-ocid="photos.upload_button"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  disabled={isUploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setUploadFile(file);
-                  }}
-                />
               </label>
             </div>
 
@@ -1489,8 +1869,42 @@ function PhotosPage() {
               >
                 वीडियो चुनें (MP4/MOV/WEBM) *
               </Label>
+              <input
+                ref={videoInputRef}
+                id="video-file"
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                className="hidden"
+                disabled={isVideoUploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const maxSize = 50 * 1024 * 1024; // 50MB
+                    const autoTitle = file.name.replace(/\.[^.]+$/, "");
+                    if (file.size > maxSize) {
+                      setVideoSizeError(
+                        "वीडियो 50MB से बड़ा नहीं होना चाहिए। कृपया छोटा वीडियो चुनें।",
+                      );
+                      setVideoFile(file);
+                      if (!videoTitle.trim()) setVideoTitle(autoTitle);
+                    } else {
+                      setVideoSizeError(null);
+                      setVideoFile(file);
+                      if (!videoTitle.trim()) setVideoTitle(autoTitle);
+                    }
+                  }
+                }}
+              />
               <label
                 htmlFor="video-file"
+                onClick={(e) => {
+                  e.preventDefault();
+                  videoInputRef.current?.click();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    videoInputRef.current?.click();
+                }}
                 data-ocid="videos.upload.dropzone"
                 className="flex flex-col items-center justify-center gap-2 rounded-xl cursor-pointer transition-all w-full"
                 style={{
@@ -1511,7 +1925,8 @@ function PhotosPage() {
                       {videoFile.name}
                     </p>
                     <p className="text-xs" style={{ color: "#8a9a70" }}>
-                      बदलने के लिए यहाँ tap करें
+                      {(videoFile.size / (1024 * 1024)).toFixed(1)} MB — बदलने के
+                      लिए यहाँ tap करें
                     </p>
                   </>
                 ) : (
@@ -1525,20 +1940,14 @@ function PhotosPage() {
                     </p>
                   </>
                 )}
-                <input
-                  ref={videoInputRef}
-                  id="video-file"
-                  type="file"
-                  accept="video/mp4,video/quicktime,video/webm"
-                  className="hidden"
-                  disabled={isVideoUploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setVideoFile(file);
-                  }}
-                />
               </label>
             </div>
+
+            {videoSizeError && (
+              <p className="text-xs font-semibold" style={{ color: "#c0392b" }}>
+                ⚠️ {videoSizeError}
+              </p>
+            )}
 
             {isVideoUploading && (
               <div
@@ -1571,7 +1980,12 @@ function PhotosPage() {
             <Button
               data-ocid="videos.upload.submit_button"
               onClick={handleVideoUpload}
-              disabled={isVideoUploading || !videoTitle.trim() || !videoFile}
+              disabled={
+                isVideoUploading ||
+                !videoTitle.trim() ||
+                !videoFile ||
+                !!videoSizeError
+              }
               className="flex-1 rounded-xl text-sm font-semibold"
               style={{ background: "#2D5016", color: "white", border: "none" }}
             >
@@ -1689,6 +2103,27 @@ function PhotosPage() {
 }
 
 function EmergencyPage() {
+  const [contacts, setContacts] = useState(EMERGENCY);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editNumber, setEditNumber] = useState("");
+
+  function openEdit(idx: number) {
+    setEditIdx(idx);
+    setEditName(contacts[idx].name);
+    setEditNumber(contacts[idx].number);
+  }
+
+  function saveEdit() {
+    if (editIdx === null) return;
+    setContacts((prev) =>
+      prev.map((c, i) =>
+        i === editIdx ? { ...c, name: editName, number: editNumber } : c,
+      ),
+    );
+    setEditIdx(null);
+  }
+
   return (
     <div className="px-4 py-4 flex flex-col gap-3">
       <div
@@ -1709,48 +2144,126 @@ function EmergencyPage() {
       >
         आपातकालीन संपर्क
       </h2>
-      {EMERGENCY.map((contact, idx) => (
-        <a
+      {contacts.map((contact, idx) => (
+        <div
           key={contact.name}
-          href={`tel:${contact.number}`}
+          className="relative"
           data-ocid={`emergency.item.${idx + 1}`}
-          className="block"
         >
-          <Card className="card-hover" style={{ borderColor: "#c8ddb2" }}>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
-                style={{ background: `${contact.color}20` }}
-              >
-                {contact.icon}
-              </div>
-              <div className="flex-1">
-                <p
-                  className="font-semibold text-sm"
-                  style={{ color: "#2D5016" }}
+          <a href={`tel:${contact.number}`} className="block">
+            <Card className="card-hover" style={{ borderColor: "#c8ddb2" }}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
+                  style={{ background: `${contact.color}20` }}
                 >
-                  {contact.name}
-                </p>
-                <p
-                  className="text-base font-bold"
-                  style={{ color: contact.color }}
+                  {contact.icon}
+                </div>
+                <div className="flex-1">
+                  <p
+                    className="font-semibold text-sm"
+                    style={{ color: "#2D5016" }}
+                  >
+                    {contact.name}
+                  </p>
+                  <p
+                    className="text-base font-bold"
+                    style={{ color: contact.color }}
+                  >
+                    {contact.number}
+                  </p>
+                </div>
+                <span
+                  className="text-xs px-2 py-1 rounded-full"
+                  style={{
+                    background: `${contact.color}20`,
+                    color: contact.color,
+                  }}
                 >
-                  {contact.number}
-                </p>
-              </div>
-              <span
-                className="text-xs px-2 py-1 rounded-full"
-                style={{
-                  background: `${contact.color}20`,
-                  color: contact.color,
-                }}
-              >
-                कॉल करें
-              </span>
-            </CardContent>
-          </Card>
-        </a>
+                  कॉल करें
+                </span>
+              </CardContent>
+            </Card>
+          </a>
+          {!contact.isFixed && (
+            <button
+              type="button"
+              data-ocid={`emergency.edit_button.${idx + 1}`}
+              onClick={(e) => {
+                e.preventDefault();
+                openEdit(idx);
+              }}
+              className="absolute top-2 right-2 text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded z-10"
+              title="संपादित करें"
+            >
+              ✏️
+            </button>
+          )}
+        </div>
       ))}
+
+      <Dialog
+        open={editIdx !== null}
+        onOpenChange={(o) => !o && setEditIdx(null)}
+      >
+        <DialogContent
+          data-ocid="emergency.edit.dialog"
+          className="max-w-sm mx-4"
+        >
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              संपर्क संपादित करें
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-2">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नाम
+              </Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नंबर
+              </Label>
+              <Input
+                value={editNumber}
+                onChange={(e) => setEditNumber(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditIdx(null)}
+              >
+                रद्द करें
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveEdit}
+                style={{ background: "#2D5016" }}
+              >
+                सहेजें
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
