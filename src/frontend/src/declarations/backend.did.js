@@ -20,6 +20,12 @@ export const _CaffeineStorageRefillResult = IDL.Record({
   'topped_up_amount' : IDL.Opt(IDL.Nat),
 });
 export const ExternalBlob = IDL.Vec(IDL.Nat8);
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const Person = IDL.Record({
   'name' : IDL.Text,
   'profession' : IDL.Text,
@@ -32,11 +38,37 @@ export const GalleryPhoto = IDL.Record({
   'blob' : ExternalBlob,
   'uploadedAt' : IDL.Int,
 });
+export const GraminProduct = IDL.Record({
+  'id' : IDL.Nat,
+  'pricePerKg' : IDL.Text,
+  'productName' : IDL.Text,
+  'pricePerQtl' : IDL.Text,
+  'addedAt' : IDL.Int,
+  'quantity' : IDL.Text,
+  'contactNumber' : IDL.Text,
+});
+export const TransportEntry = IDL.Record({
+  'id' : IDL.Nat,
+  'vehicleType' : IDL.Text,
+  'destination' : IDL.Text,
+  'departureTime' : IDL.Text,
+  'addedAt' : IDL.Int,
+  'availableSeats' : IDL.Nat,
+  'contactNumber' : IDL.Text,
+});
 export const GalleryVideo = IDL.Record({
   'id' : IDL.Int,
   'title' : IDL.Text,
   'blob' : ExternalBlob,
   'uploadedAt' : IDL.Int,
+});
+export const VillageInfo = IDL.Record({
+  'literacy' : IDL.Text,
+  'area' : IDL.Text,
+  'name' : IDL.Text,
+  'slogan' : IDL.Text,
+  'houses' : IDL.Text,
+  'population' : IDL.Text,
 });
 
 export const idlService = IDL.Service({
@@ -66,19 +98,57 @@ export const idlService = IDL.Service({
       [],
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addPerson' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
       [],
       [],
     ),
   'addPhoto' : IDL.Func([IDL.Text, ExternalBlob], [IDL.Nat], []),
+  'addProduct' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
+  'addTransport' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'addVideo' : IDL.Func([IDL.Text, ExternalBlob], [IDL.Int], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'claimAdminRole' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'deletePhoto' : IDL.Func([IDL.Nat], [], []),
+  'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+  'deleteTransport' : IDL.Func([IDL.Nat], [], []),
+  'deleteVideo' : IDL.Func([IDL.Int], [], []),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getPerson' : IDL.Func([IDL.Text], [IDL.Opt(Person)], ['query']),
   'getPersons' : IDL.Func([], [IDL.Vec(Person)], ['query']),
   'getPhoto' : IDL.Func([IDL.Nat], [IDL.Opt(GalleryPhoto)], ['query']),
   'getPhotos' : IDL.Func([], [IDL.Vec(GalleryPhoto)], ['query']),
+  'getProduct' : IDL.Func([IDL.Nat], [IDL.Opt(GraminProduct)], ['query']),
+  'getProducts' : IDL.Func([], [IDL.Vec(GraminProduct)], ['query']),
+  'getTransport' : IDL.Func([IDL.Nat], [IDL.Opt(TransportEntry)], ['query']),
+  'getTransports' : IDL.Func([], [IDL.Vec(TransportEntry)], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
   'getVideo' : IDL.Func([IDL.Int], [IDL.Opt(GalleryVideo)], ['query']),
   'getVideos' : IDL.Func([], [IDL.Vec(GalleryVideo)], ['query']),
+  'getVillageInfo' : IDL.Func([], [VillageInfo], ['query']),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'populateDemoProducts' : IDL.Func([], [], []),
+  'populateDemoTransports' : IDL.Func([], [], []),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'updateVillageInfo' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
 });
 
 export const idlInitArgs = [];
@@ -96,6 +166,12 @@ export const idlFactory = ({ IDL }) => {
     'topped_up_amount' : IDL.Opt(IDL.Nat),
   });
   const ExternalBlob = IDL.Vec(IDL.Nat8);
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
   const Person = IDL.Record({
     'name' : IDL.Text,
     'profession' : IDL.Text,
@@ -108,11 +184,37 @@ export const idlFactory = ({ IDL }) => {
     'blob' : ExternalBlob,
     'uploadedAt' : IDL.Int,
   });
+  const GraminProduct = IDL.Record({
+    'id' : IDL.Nat,
+    'pricePerKg' : IDL.Text,
+    'productName' : IDL.Text,
+    'pricePerQtl' : IDL.Text,
+    'addedAt' : IDL.Int,
+    'quantity' : IDL.Text,
+    'contactNumber' : IDL.Text,
+  });
+  const TransportEntry = IDL.Record({
+    'id' : IDL.Nat,
+    'vehicleType' : IDL.Text,
+    'destination' : IDL.Text,
+    'departureTime' : IDL.Text,
+    'addedAt' : IDL.Int,
+    'availableSeats' : IDL.Nat,
+    'contactNumber' : IDL.Text,
+  });
   const GalleryVideo = IDL.Record({
     'id' : IDL.Int,
     'title' : IDL.Text,
     'blob' : ExternalBlob,
     'uploadedAt' : IDL.Int,
+  });
+  const VillageInfo = IDL.Record({
+    'literacy' : IDL.Text,
+    'area' : IDL.Text,
+    'name' : IDL.Text,
+    'slogan' : IDL.Text,
+    'houses' : IDL.Text,
+    'population' : IDL.Text,
   });
   
   return IDL.Service({
@@ -142,19 +244,57 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addPerson' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
         [],
         [],
       ),
     'addPhoto' : IDL.Func([IDL.Text, ExternalBlob], [IDL.Nat], []),
+    'addProduct' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'addTransport' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'addVideo' : IDL.Func([IDL.Text, ExternalBlob], [IDL.Int], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'claimAdminRole' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'deletePhoto' : IDL.Func([IDL.Nat], [], []),
+    'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+    'deleteTransport' : IDL.Func([IDL.Nat], [], []),
+    'deleteVideo' : IDL.Func([IDL.Int], [], []),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getPerson' : IDL.Func([IDL.Text], [IDL.Opt(Person)], ['query']),
     'getPersons' : IDL.Func([], [IDL.Vec(Person)], ['query']),
     'getPhoto' : IDL.Func([IDL.Nat], [IDL.Opt(GalleryPhoto)], ['query']),
     'getPhotos' : IDL.Func([], [IDL.Vec(GalleryPhoto)], ['query']),
+    'getProduct' : IDL.Func([IDL.Nat], [IDL.Opt(GraminProduct)], ['query']),
+    'getProducts' : IDL.Func([], [IDL.Vec(GraminProduct)], ['query']),
+    'getTransport' : IDL.Func([IDL.Nat], [IDL.Opt(TransportEntry)], ['query']),
+    'getTransports' : IDL.Func([], [IDL.Vec(TransportEntry)], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
     'getVideo' : IDL.Func([IDL.Int], [IDL.Opt(GalleryVideo)], ['query']),
     'getVideos' : IDL.Func([], [IDL.Vec(GalleryVideo)], ['query']),
+    'getVillageInfo' : IDL.Func([], [VillageInfo], ['query']),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'populateDemoProducts' : IDL.Func([], [], []),
+    'populateDemoTransports' : IDL.Func([], [], []),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'updateVillageInfo' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
   });
 };
 

@@ -13,18 +13,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExternalBlob } from "./backend";
-import type {
-  GalleryPhoto,
-  GalleryVideo,
-  GraminProduct,
-  Person,
-  TransportEntry,
-} from "./backend.d";
+import type { GalleryPhoto, GalleryVideo, Person } from "./backend.d";
 import type { VillageInfo } from "./backend.d";
 import { useActor } from "./hooks/useActor";
+import { useInternetIdentity } from "./hooks/useInternetIdentity";
 
 // ─── Data ──────────────────────────────────────────────────────────────────
 
@@ -38,13 +33,29 @@ const INITIAL_NEWS = [
   },
 ];
 
-type NewsItem = {
+type MarketItem = {
   id: number;
-  title: string;
-  body: string;
-  date: string;
-  tag: string;
+  item: string;
+  price: string;
+  change: string;
+  trend: string;
+  seller?: string;
+  phone?: string;
+  isUserAdded?: boolean;
 };
+
+const INITIAL_MARKET_PRICES: MarketItem[] = [
+  { id: 1, item: "आलू", price: "₹20/किग्रा", change: "↓", trend: "down" },
+  { id: 2, item: "टमाटर", price: "₹35/किग्रा", change: "↑", trend: "up" },
+  { id: 3, item: "प्याज", price: "₹28/किग्रा", change: "→", trend: "stable" },
+  { id: 4, item: "गेहूँ", price: "₹22/किग्रा", change: "↑", trend: "up" },
+  { id: 5, item: "चावल", price: "₹42/किग्रा", change: "→", trend: "stable" },
+  { id: 6, item: "मक्का", price: "₹18/किग्रा", change: "↓", trend: "down" },
+  { id: 7, item: "सरसों", price: "₹55/किग्रा", change: "↑", trend: "up" },
+  { id: 8, item: "दाल (मूँग)", price: "₹95/किग्रा", change: "→", trend: "stable" },
+  { id: 9, item: "गोभी", price: "₹15/किग्रा", change: "↓", trend: "down" },
+  { id: 10, item: "बैंगन", price: "₹25/किग्रा", change: "→", trend: "stable" },
+];
 
 const SERVICES = [
   {
@@ -310,74 +321,35 @@ type Tab =
   | "market"
   | "services"
   | "photos"
+  | "emergency"
   | "people"
   | "admin";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "home", label: "होम", icon: "🏡" },
   { id: "news", label: "खबरें", icon: "📰" },
-  { id: "market", label: "उत्पाद", icon: "🌾" },
+  { id: "market", label: "बाजार", icon: "🛒" },
   { id: "services", label: "सेवाएँ", icon: "🏛️" },
   { id: "photos", label: "फोटो", icon: "📷" },
+  { id: "emergency", label: "आपातकाल", icon: "🆘" },
   { id: "people", label: "लोग", icon: "👥" },
 ];
 
 // ─── Page Components ─────────────────────────────────────────────────────────
 
 const INITIAL_QUICK_SERVICES = [
-  {
-    id: 1,
-    label: "राशन कार्ड",
-    icon: "📋",
-    detail:
-      "राशन कार्ड के लिए ग्राम पंचायत कार्यालय में आवेदन करें। आवश्यक दस्तावेज: आधार कार्ड, परिवार के सदस्यों की जानकारी।",
-  },
-  {
-    id: 2,
-    label: "जन्म प्रमाण",
-    icon: "📜",
-    detail:
-      "जन्म प्रमाण पत्र के लिए नगर पालिका या ग्राम पंचायत से संपर्क करें। जन्म के 21 दिन के भीतर पंजीकरण करवाएँ।",
-  },
-  {
-    id: 3,
-    label: "आय प्रमाण",
-    icon: "💼",
-    detail:
-      "आय प्रमाण पत्र के लिए तहसील कार्यालय जाएँ। आधार कार्ड और स्व-घोषणा पत्र साथ लेकर जाएँ।",
-  },
-  {
-    id: 4,
-    label: "नरेगा",
-    icon: "⛏️",
-    detail:
-      "मनरेगा जॉब कार्ड के लिए ग्राम पंचायत में पंजीकरण करवाएँ। प्रति वर्ष 100 दिन का रोजगार गारंटी के साथ मिलता है।",
-  },
-  {
-    id: 5,
-    label: "पेंशन",
-    icon: "👴",
-    detail:
-      "वृद्धावस्था पेंशन के लिए तहसील कार्यालय में आवेदन करें। 60 वर्ष से अधिक आयु के नागरिकों को पेंशन मिलती है।",
-  },
-  {
-    id: 6,
-    label: "वृक्षारोपण",
-    icon: "🌳",
-    detail:
-      "ग्राम में वृक्षारोपण कार्यक्रम के लिए ग्राम पंचायत से संपर्क करें। पौधे निःशुल्क उपलब्ध कराए जाते हैं।",
-  },
+  { id: 1, label: "राशन कार्ड", icon: "📋" },
+  { id: 2, label: "जन्म प्रमाण", icon: "📜" },
+  { id: 3, label: "आय प्रमाण", icon: "💼" },
+  { id: 4, label: "नरेगा", icon: "⛏️" },
+  { id: 5, label: "पेंशन", icon: "👴" },
+  { id: 6, label: "वृक्षारोपण", icon: "🌳" },
 ];
 
 function HomePage({
   villageInfo,
   isVillageLoading,
-  newsList,
-}: {
-  villageInfo?: VillageInfo;
-  isVillageLoading?: boolean;
-  newsList: NewsItem[];
-}) {
+}: { villageInfo?: VillageInfo; isVillageLoading?: boolean }) {
   const [quickServices, setQuickServices] = useState(INITIAL_QUICK_SERVICES);
   const [qsEditIdx, setQsEditIdx] = useState<number | null>(null);
   const [qsEditLabel, setQsEditLabel] = useState("");
@@ -386,10 +358,6 @@ function HomePage({
   const [qsNewLabel, setQsNewLabel] = useState("");
   const [qsNewIcon, setQsNewIcon] = useState("");
   const [qsNextId, setQsNextId] = useState(7);
-  const [qsViewIdx, setQsViewIdx] = useState<number | null>(null);
-  const [qsEditDetail, setQsEditDetail] = useState("");
-  const [qsNewDetail, setQsNewDetail] = useState("");
-  const [qsViewEditMode, setQsViewEditMode] = useState(false);
 
   return (
     <div className="flex flex-col items-center gap-6 pb-4">
@@ -417,22 +385,25 @@ function HomePage({
         </p>
       </div>
 
-      {/* Village cultural description */}
-      <div className="w-full px-4 mt-3 mb-1">
+      <div className="w-full px-4">
         <div
+          className="rounded-2xl p-4"
           style={{
-            background: "linear-gradient(90deg, #c62828 0%, #e53935 100%)",
-            borderRadius: "10px",
-            padding: "10px 14px",
-            color: "white",
-            fontSize: "0.82rem",
-            fontWeight: 500,
-            lineHeight: "1.6",
-            letterSpacing: "0.01em",
+            background: "linear-gradient(135deg, #c62828 0%, #e53935 100%)",
+            border: "1px solid #ef9a9a",
           }}
         >
-          🏔️ जैन कराश गाँव अपनी समृद्ध संस्कृति, प्राचीन इतिहास और गोलू देवता, हरजू देवता,
-          मायिका और गणनाथ जैसे पवित्र मंदिरों के कारण एक विशेष पहचान रखता है।
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">🎉</span>
+            <span className="text-white font-bold text-base">
+              गाँव में बेसी शुरू!
+            </span>
+          </div>
+          <p className="text-white text-xs leading-relaxed opacity-90">
+            23 तारीख से गाँव में बेसी शुरू हो रही है। बेसी 11 दिन की होती है, लेकिन दिन और
+            रात दोनों मिलाकर गिनने से 22 हो जाती है — इसीलिए इसे{" "}
+            <strong>"बेसी"</strong> कहते हैं।
+          </p>
         </div>
       </div>
 
@@ -554,137 +525,16 @@ function HomePage({
               >
                 ✕
               </button>
-              <button
-                type="button"
-                data-ocid={`quick_services.view_button.${idx + 1}`}
-                className="flex flex-col items-center gap-1 w-full bg-transparent border-none cursor-pointer mt-2"
-                onClick={() => {
-                  setQsViewIdx(idx);
-                  setQsViewEditMode(false);
-                  setQsEditLabel(svc.label);
-                  setQsEditIcon(svc.icon);
-                  setQsEditDetail(svc.detail || "");
-                }}
+              <span className="text-2xl mt-2">{svc.icon}</span>
+              <span
+                className="text-xs text-center"
+                style={{ color: "#2D5016" }}
               >
-                <span className="text-2xl">{svc.icon}</span>
-                <span
-                  className="text-xs text-center"
-                  style={{ color: "#2D5016" }}
-                >
-                  {svc.label}
-                </span>
-              </button>
+                {svc.label}
+              </span>
             </div>
           ))}
         </div>
-
-        {/* Detail / View-Edit dialog */}
-        <Dialog
-          open={qsViewIdx !== null}
-          onOpenChange={(o) => {
-            if (!o) {
-              setQsViewIdx(null);
-              setQsViewEditMode(false);
-            }
-          }}
-        >
-          <DialogContent data-ocid="quick_services.view.dialog">
-            <DialogHeader>
-              <DialogTitle>
-                {qsViewIdx !== null
-                  ? `${quickServices[qsViewIdx]?.icon} ${quickServices[qsViewIdx]?.label}`
-                  : ""}
-              </DialogTitle>
-            </DialogHeader>
-            {qsViewIdx !== null && !qsViewEditMode && (
-              <div className="flex flex-col gap-4 mt-2">
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: "#374151" }}
-                >
-                  {quickServices[qsViewIdx]?.detail ||
-                    "इस सेवा के लिए कोई विवरण उपलब्ध नहीं है।"}
-                </p>
-                <Button
-                  data-ocid="quick_services.view.edit_button"
-                  variant="outline"
-                  onClick={() => {
-                    setQsViewEditMode(true);
-                    setQsEditLabel(quickServices[qsViewIdx].label);
-                    setQsEditIcon(quickServices[qsViewIdx].icon);
-                    setQsEditDetail(quickServices[qsViewIdx].detail || "");
-                  }}
-                  style={{ borderColor: "#2D5016", color: "#2D5016" }}
-                >
-                  ✏️ संपादित करें
-                </Button>
-              </div>
-            )}
-            {qsViewIdx !== null && qsViewEditMode && (
-              <div className="flex flex-col gap-3 mt-2">
-                <div>
-                  <Label>आइकन (emoji)</Label>
-                  <Input
-                    data-ocid="quick_services.view.icon.input"
-                    value={qsEditIcon}
-                    onChange={(e) => setQsEditIcon(e.target.value)}
-                    placeholder="जैसे: 📋"
-                  />
-                </div>
-                <div>
-                  <Label>सेवा का नाम</Label>
-                  <Input
-                    data-ocid="quick_services.view.label.input"
-                    value={qsEditLabel}
-                    onChange={(e) => setQsEditLabel(e.target.value)}
-                    placeholder="सेवा का नाम"
-                  />
-                </div>
-                <div>
-                  <Label>विवरण / जानकारी</Label>
-                  <textarea
-                    data-ocid="quick_services.view.detail.textarea"
-                    value={qsEditDetail}
-                    onChange={(e) => setQsEditDetail(e.target.value)}
-                    placeholder="सेवा की जानकारी लिखें..."
-                    rows={4}
-                    className="w-full border rounded-md px-3 py-2 text-sm resize-none"
-                    style={{ borderColor: "#c8ddb2", outline: "none" }}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    data-ocid="quick_services.view.save_button"
-                    disabled={!qsEditLabel.trim()}
-                    onClick={() => {
-                      if (qsViewIdx === null) return;
-                      const updated = [...quickServices];
-                      updated[qsViewIdx] = {
-                        ...updated[qsViewIdx],
-                        label: qsEditLabel.trim(),
-                        icon: qsEditIcon.trim() || updated[qsViewIdx].icon,
-                        detail: qsEditDetail.trim(),
-                      };
-                      setQuickServices(updated);
-                      setQsViewEditMode(false);
-                    }}
-                    style={{ background: "#2D5016", flex: 1 }}
-                  >
-                    सहेजें
-                  </Button>
-                  <Button
-                    data-ocid="quick_services.view.cancel_button"
-                    variant="outline"
-                    onClick={() => setQsViewEditMode(false)}
-                    style={{ flex: 1 }}
-                  >
-                    रद्द करें
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
 
         {/* Edit dialog */}
         <Dialog
@@ -726,7 +576,6 @@ function HomePage({
                     ...updated[qsEditIdx],
                     label: qsEditLabel.trim(),
                     icon: qsEditIcon.trim() || updated[qsEditIdx].icon,
-                    detail: qsEditDetail.trim(),
                   };
                   setQuickServices(updated);
                   setQsEditIdx(null);
@@ -764,18 +613,6 @@ function HomePage({
                   placeholder="सेवा का नाम लिखें"
                 />
               </div>
-              <div>
-                <Label>विवरण / जानकारी</Label>
-                <textarea
-                  data-ocid="quick_services.new_detail.textarea"
-                  value={qsNewDetail}
-                  onChange={(e) => setQsNewDetail(e.target.value)}
-                  placeholder="सेवा की जानकारी लिखें (वैकल्पिक)"
-                  rows={3}
-                  className="w-full border rounded-md px-3 py-2 text-sm resize-none"
-                  style={{ borderColor: "#c8ddb2", outline: "none" }}
-                />
-              </div>
               <Button
                 data-ocid="quick_services.add.submit_button"
                 disabled={!qsNewLabel.trim()}
@@ -786,11 +623,9 @@ function HomePage({
                       id: qsNextId,
                       label: qsNewLabel.trim(),
                       icon: qsNewIcon.trim() || "📌",
-                      detail: qsNewDetail.trim(),
                     },
                   ]);
                   setQsNextId(qsNextId + 1);
-                  setQsNewDetail("");
                   setQsAddOpen(false);
                 }}
                 style={{ background: "#2D5016" }}
@@ -802,104 +637,39 @@ function HomePage({
         </Dialog>
       </div>
 
-      {/* Animated News Ticker + Cards */}
-      <div className="w-full">
-        {/* Scrolling ticker strip */}
-        <div
-          data-ocid="home.news_ticker"
-          className="w-full overflow-hidden"
-          style={{
-            background: "linear-gradient(90deg, #c62828 0%, #e53935 100%)",
-            padding: "7px 0",
-          }}
+      <div className="w-full px-4">
+        <h2
+          className="text-base font-semibold mb-3"
+          style={{ color: "#2D5016" }}
         >
-          <div
-            style={{
-              display: "inline-block",
-              whiteSpace: "nowrap",
-              animation: "marquee 22s linear infinite",
-              fontSize: "0.78rem",
-              color: "white",
-              fontWeight: 600,
-              letterSpacing: "0.01em",
-            }}
-          >
-            {newsList.length > 0
-              ? newsList.map((n) => `📰 ${n.title}`).join("  •  ")
-              : "📰 गाँव में बेसी शुरू — 23 से"}
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          </div>
-        </div>
-
-        {/* Latest news cards */}
-        <div className="px-4 mt-3">
-          <h2
-            className="text-base font-semibold mb-2"
-            style={{ color: "#2D5016" }}
-          >
-            ताजा खबरें
-          </h2>
-          <div className="flex flex-col gap-2">
-            {newsList.slice(0, 3).map((item, idx) => (
-              <div
-                key={item.id}
-                data-ocid={`home.news.item.${idx + 1}`}
-                style={{
-                  borderLeft: "4px solid #2D5016",
-                  background: "white",
-                  borderRadius: "10px",
-                  boxShadow: "0 1px 6px rgba(45,80,22,0.08)",
-                  padding: "10px 12px",
-                  animation: "slideUp 0.4s ease both",
-                  animationDelay: `${idx * 100}ms`,
-                  opacity: 0,
-                }}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                    style={{
-                      background: TAG_COLORS[item.tag] ?? "#2D5016",
-                      color: "white",
-                    }}
-                  >
-                    {item.tag}
-                  </span>
-                  <span className="text-xs" style={{ color: "#8a9a70" }}>
-                    {item.date}
-                  </span>
-                </div>
-                <p className="text-sm font-bold" style={{ color: "#2D5016" }}>
-                  {item.title}
-                </p>
-                <p
-                  className="text-xs mt-0.5 leading-relaxed"
-                  style={{
-                    color: "#4a5a30",
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                  }}
-                >
-                  {item.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+          ताजा खबर
+        </h2>
+        <Card
+          style={{ borderLeft: "4px solid #c62828", borderColor: "#c8ddb2" }}
+        >
+          <CardContent className="p-3">
+            <p className="text-xs font-semibold" style={{ color: "#c62828" }}>
+              उत्सव
+            </p>
+            <p
+              className="text-sm font-bold mt-0.5"
+              style={{ color: "#2D5016" }}
+            >
+              गाँव में बेसी शुरू — 23 से
+            </p>
+            <p className="text-xs mt-1" style={{ color: "#5a7a40" }}>
+              23 से गाँव में बेसी शुरू हो रही है। बेसी 11 दिन की होती है, दिन-रात मिलाकर
+              22 — इसीलिए इसे बेसी कहते हैं।
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
 
-function NewsPage({
-  newsList,
-  setNewsList,
-}: {
-  newsList: NewsItem[];
-  setNewsList: React.Dispatch<React.SetStateAction<NewsItem[]>>;
-}) {
+function NewsPage() {
+  const [newsList, setNewsList] = useState(INITIAL_NEWS);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -937,9 +707,7 @@ function NewsPage({
     setBody("");
     setTag("");
     setOpen(false);
-    const prevNews = Number(localStorage.getItem("bisht_news_count") ?? 0);
-    localStorage.setItem("bisht_news_count", String(prevNews + 1));
-    toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
+    toast.success("खबर जोड़ दी गई!");
   }
 
   return (
@@ -1070,898 +838,385 @@ function NewsPage({
 }
 
 function MarketPage() {
-  const { actor, isFetching } = useActor();
-  const queryClient = useQueryClient();
-  const [activeSubTab, setActiveSubTab] = useState<"products" | "transport">(
-    "products",
-  );
-
-  // ── ग्रामीन उत्पाद ──
-  const { data: products = [], isLoading: productsLoading } = useQuery<
-    GraminProduct[]
-  >({
-    queryKey: ["products"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getProducts();
-    },
-    enabled: !!actor && !isFetching,
-  });
-
-  const [prodDialogOpen, setProdDialogOpen] = useState(false);
-  const [prodForm, setProdForm] = useState({
-    farmerName: "",
-    productName: "",
-    quantity: "",
+  const [prices, setPrices] = useState<MarketItem[]>(INITIAL_MARKET_PRICES);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({
+    seller: "",
+    item: "",
     price: "",
     phone: "",
   });
+  const [nextId, setNextId] = useState(11);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editPrice, setEditPrice] = useState("");
 
-  const addProductMutation = useMutation({
-    mutationFn: async () => {
-      if (!actor) throw new Error("कनेक्शन नहीं है, Page refresh करें");
-      const productName = prodForm.farmerName.trim()
-        ? `${prodForm.productName.trim()} (${prodForm.farmerName.trim()})`
-        : prodForm.productName.trim();
-      return actor.addProduct(
-        productName,
-        prodForm.quantity.trim(),
-        prodForm.price.trim(),
-        "",
-        prodForm.phone.trim(),
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      setProdForm({
-        farmerName: "",
-        productName: "",
-        quantity: "",
-        price: "",
-        phone: "",
-      });
-      setProdDialogOpen(false);
-      const prevProd = Number(
-        localStorage.getItem("bisht_products_count") ?? 0,
-      );
-      localStorage.setItem("bisht_products_count", String(prevProd + 1));
-      toast.success("🌾 नया उत्पाद जोड़ा गया!", { duration: 5000 });
-    },
-    onError: (err) => {
-      console.error("addProduct error:", err);
-      if (!actor) {
-        toast.error("कनेक्शन नहीं है, Page refresh करें");
-      } else {
-        toast.error("उत्पाद जोड़ने में त्रुटि हुई, पुनः प्रयास करें");
-      }
-    },
-  });
-
-  const deleteProductMutation = useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.deleteProduct(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-  });
-
-  function handleAddProduct() {
-    if (!prodForm.productName.trim() || !prodForm.price.trim()) return;
-    addProductMutation.mutate();
+  function handleAdd() {
+    if (!form.seller.trim() || !form.item.trim() || !form.price.trim()) return;
+    const newItem: MarketItem = {
+      id: nextId,
+      item: form.item.trim(),
+      price: form.price.trim(),
+      change: "🆕",
+      trend: "stable",
+      seller: form.seller.trim(),
+      phone: form.phone.trim() || undefined,
+      isUserAdded: true,
+    };
+    setPrices((prev) => [newItem, ...prev]);
+    setNextId((n) => n + 1);
+    setForm({ seller: "", item: "", price: "", phone: "" });
+    setDialogOpen(false);
+    toast.success("उत्पाद जोड़ा गया!");
   }
 
-  // ── ग्रामीन यातायात ──
-  const { data: transports = [], isLoading: transportsLoading } = useQuery<
-    TransportEntry[]
-  >({
-    queryKey: ["transports"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getTransports();
-    },
-    enabled: !!actor && !isFetching,
-  });
+  function handleDelete(id: number) {
+    setPrices((prev) => prev.filter((p) => p.id !== id));
+  }
 
-  const [transDialogOpen, setTransDialogOpen] = useState(false);
-  const [transForm, setTransForm] = useState({
-    driverName: "",
-    vehicleType: "",
-    departureTime: "",
-    destination: "",
-    availableSeats: "",
-    phone: "",
-  });
+  function handleEditOpen(row: MarketItem) {
+    setEditId(row.id);
+    setEditPrice(row.price);
+    setEditDialogOpen(true);
+  }
 
-  const addTransportMutation = useMutation({
-    mutationFn: async () => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.addTransport(
-        transForm.vehicleType.trim(),
-        transForm.departureTime.trim(),
-        transForm.destination.trim(),
-        BigInt(Number.parseInt(transForm.availableSeats) || 0),
-        transForm.phone.trim(),
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transports"] });
-      setTransForm({
-        driverName: "",
-        vehicleType: "",
-        departureTime: "",
-        destination: "",
-        availableSeats: "",
-        phone: "",
-      });
-      setTransDialogOpen(false);
-      const prevTrans = Number(
-        localStorage.getItem("bisht_transport_count") ?? 0,
-      );
-      localStorage.setItem("bisht_transport_count", String(prevTrans + 1));
-      toast.success("🚗 नई यातायात सेवा जोड़ी गई!", { duration: 5000 });
-    },
-    onError: () => {
-      toast.error("यातायात सेवा जोड़ने में त्रुटि हुई, पुनः प्रयास करें");
-    },
-  });
-
-  const deleteTransportMutation = useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.deleteTransport(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transports"] });
-    },
-  });
-
-  function handleAddTransport() {
-    if (!transForm.vehicleType.trim() || !transForm.destination.trim()) return;
-    addTransportMutation.mutate();
+  function handleEditSave() {
+    if (!editPrice.trim() || editId === null) return;
+    setPrices((prev) =>
+      prev.map((p) =>
+        p.id === editId ? { ...p, price: editPrice.trim() } : p,
+      ),
+    );
+    setEditDialogOpen(false);
+    setEditId(null);
+    setEditPrice("");
+    toast.success("भाव अपडेट हुआ!");
   }
 
   return (
     <div className="px-4 py-4">
-      {/* Sub-tab selector */}
-      <div
-        className="flex rounded-xl overflow-hidden border mb-4"
-        style={{ borderColor: "#c8ddb2" }}
-      >
-        <button
-          type="button"
-          data-ocid="market.products.tab"
-          onClick={() => setActiveSubTab("products")}
-          className="flex-1 py-2.5 text-sm font-semibold transition-colors"
+      <div className="flex items-center justify-between mb-1">
+        <h2
+          className="text-lg font-bold"
           style={{
-            background: activeSubTab === "products" ? "#2D5016" : "#f5f5eb",
-            color: activeSubTab === "products" ? "white" : "#2D5016",
+            color: "#2D5016",
+            fontFamily: "'Tiro Devanagari Hindi', serif",
           }}
         >
-          🌾 ग्रामीन उत्पाद
-        </button>
+          बाजार भाव
+        </h2>
         <button
           type="button"
-          data-ocid="market.transport.tab"
-          onClick={() => setActiveSubTab("transport")}
-          className="flex-1 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            background: activeSubTab === "transport" ? "#2D5016" : "#f5f5eb",
-            color: activeSubTab === "transport" ? "white" : "#2D5016",
-          }}
+          data-ocid="market.add_button"
+          onClick={() => setDialogOpen(true)}
+          className="flex items-center gap-1 text-white text-xs font-semibold px-3 py-1.5 rounded-full"
+          style={{ background: "#2D5016" }}
         >
-          🚗 ग्रामीन यातायात
+          + उत्पाद जोड़ें
         </button>
       </div>
+      <p className="text-xs mb-4" style={{ color: "#8a9a70" }}>
+        आज के ताजा बाजार भाव — 16 मार्च 2026
+      </p>
 
-      {/* ── ग्रामीन उत्पाद ── */}
-      {activeSubTab === "products" && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent
+          data-ocid="market.add_product.dialog"
+          className="mx-4 rounded-2xl"
+        >
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              नया उत्पाद जोड़ें
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-1">
             <div>
-              <h2
-                className="text-lg font-bold"
-                style={{
-                  color: "#2D5016",
-                  fontFamily: "'Tiro Devanagari Hindi', serif",
-                }}
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
               >
-                ग्रामीन उत्पाद
-              </h2>
-              <p className="text-xs" style={{ color: "#8a9a70" }}>
-                किसान अपने उत्पाद यहाँ सूचीबद्ध करें
-              </p>
+                विक्रेता का नाम *
+              </Label>
+              <Input
+                data-ocid="market.seller_name.input"
+                placeholder="जैसे: रामलाल यादव"
+                value={form.seller}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, seller: e.target.value }))
+                }
+              />
             </div>
-            <button
-              type="button"
-              data-ocid="market.add_product.button"
-              onClick={() => setProdDialogOpen(true)}
-              className="flex items-center gap-1 text-white text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: "#2D5016" }}
-            >
-              + उत्पाद जोड़ें
-            </button>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                उत्पाद का नाम *
+              </Label>
+              <Input
+                data-ocid="market.product_name.input"
+                placeholder="जैसे: आलू, टमाटर, दूध"
+                value={form.item}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, item: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                मूल्य *
+              </Label>
+              <Input
+                data-ocid="market.price.input"
+                placeholder="जैसे: ₹20/किग्रा"
+                value={form.price}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, price: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                फोन नंबर (वैकल्पिक)
+              </Label>
+              <Input
+                data-ocid="market.phone.input"
+                placeholder="जैसे: 9876543210"
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, phone: e.target.value }))
+                }
+                type="tel"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                data-ocid="market.submit_button"
+                onClick={handleAdd}
+                disabled={
+                  !form.seller.trim() || !form.item.trim() || !form.price.trim()
+                }
+                className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
+                style={{ background: "#2D5016" }}
+              >
+                जोड़ें
+              </button>
+              <button
+                type="button"
+                data-ocid="market.cancel_button"
+                onClick={() => {
+                  setDialogOpen(false);
+                  setForm({ seller: "", item: "", price: "", phone: "" });
+                }}
+                className="flex-1 font-semibold py-2 rounded-xl text-sm border"
+                style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+              >
+                रद्द करें
+              </button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          <Dialog open={prodDialogOpen} onOpenChange={setProdDialogOpen}>
-            <DialogContent
-              data-ocid="market.add_product.dialog"
-              className="mx-4 rounded-2xl"
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent
+          data-ocid="market.edit_price.dialog"
+          className="mx-4 rounded-2xl"
+        >
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
             >
-              <DialogHeader>
-                <DialogTitle
+              भाव अपडेट करें
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-1">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नया मूल्य *
+              </Label>
+              <Input
+                data-ocid="market.edit_price.input"
+                placeholder="जैसे: ₹25/किग्रा"
+                value={editPrice}
+                onChange={(e) => setEditPrice(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                data-ocid="market.edit_price.save_button"
+                onClick={handleEditSave}
+                disabled={!editPrice.trim()}
+                className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
+                style={{ background: "#2D5016" }}
+              >
+                सहेजें
+              </button>
+              <button
+                type="button"
+                data-ocid="market.edit_price.cancel_button"
+                onClick={() => setEditDialogOpen(false)}
+                className="flex-1 font-semibold py-2 rounded-xl text-sm border"
+                style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+              >
+                रद्द करें
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ border: "1px solid #c8ddb2" }}
+      >
+        <div
+          className="grid grid-cols-3 px-4 py-2 text-xs font-semibold text-white"
+          style={{ background: "#2D5016" }}
+        >
+          <span>वस्तु / विक्रेता</span>
+          <span className="text-center">मूल्य</span>
+          <span className="text-right">बदलाव</span>
+        </div>
+        {prices.map((row, idx) => (
+          <div
+            key={row.id}
+            data-ocid={`market.item.${idx + 1}`}
+            className="grid grid-cols-3 px-4 py-3 text-sm items-center"
+            style={{
+              background: idx % 2 === 0 ? "#faf8f0" : "#f3f0e4",
+              borderTop: "1px solid #e8e4d4",
+            }}
+          >
+            <div>
+              <div className="flex items-center gap-1">
+                <span
                   style={{
                     color: "#2D5016",
-                    fontFamily: "'Tiro Devanagari Hindi', serif",
+                    fontWeight: row.isUserAdded ? 600 : 400,
                   }}
                 >
-                  नया उत्पाद जोड़ें
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-col gap-3 pt-1">
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
+                  {row.item}
+                </span>
+                {row.isUserAdded && (
+                  <span
+                    className="text-white text-[9px] font-bold px-1 rounded"
+                    style={{ background: "#5a7a40" }}
                   >
-                    किसान का नाम
-                  </Label>
-                  <Input
-                    data-ocid="market.farmer_name.input"
-                    placeholder="जैसे: रामलाल यादव"
-                    value={prodForm.farmerName}
-                    onChange={(e) =>
-                      setProdForm((f) => ({ ...f, farmerName: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    उत्पाद का नाम *
-                  </Label>
-                  <Input
-                    data-ocid="market.product_name.input"
-                    placeholder="जैसे: गेहूँ, मक्का, सब्जी"
-                    value={prodForm.productName}
-                    onChange={(e) =>
-                      setProdForm((f) => ({
-                        ...f,
-                        productName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    उपलब्ध मात्रा
-                  </Label>
-                  <Input
-                    data-ocid="market.quantity.input"
-                    placeholder="जैसे: 50 किग्रा, 2 क्विंटल"
-                    value={prodForm.quantity}
-                    onChange={(e) =>
-                      setProdForm((f) => ({ ...f, quantity: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    कीमत *
-                  </Label>
-                  <Input
-                    data-ocid="market.price.input"
-                    placeholder="जैसे: ₹22/किग्रा या ₹2200/क्विंटल"
-                    value={prodForm.price}
-                    onChange={(e) =>
-                      setProdForm((f) => ({ ...f, price: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    संपर्क नंबर
-                  </Label>
-                  <Input
-                    data-ocid="market.phone.input"
-                    placeholder="जैसे: 9876543210"
-                    type="tel"
-                    value={prodForm.phone}
-                    onChange={(e) =>
-                      setProdForm((f) => ({ ...f, phone: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    data-ocid="market.product_submit.button"
-                    onClick={handleAddProduct}
-                    disabled={
-                      !prodForm.productName.trim() ||
-                      !prodForm.price.trim() ||
-                      addProductMutation.isPending
-                    }
-                    className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
-                    style={{ background: "#2D5016" }}
-                  >
-                    {addProductMutation.isPending ? "जोड़ा जा रहा है..." : "जोड़ें"}
-                  </button>
-                  <button
-                    type="button"
-                    data-ocid="market.product_cancel.button"
-                    onClick={() => {
-                      setProdDialogOpen(false);
-                      setProdForm({
-                        farmerName: "",
-                        productName: "",
-                        quantity: "",
-                        price: "",
-                        phone: "",
-                      });
-                    }}
-                    className="flex-1 font-semibold py-2 rounded-xl text-sm border"
-                    style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
-                  >
-                    रद्द करें
-                  </button>
-                </div>
+                    नया
+                  </span>
+                )}
               </div>
-            </DialogContent>
-          </Dialog>
-
-          {productsLoading ? (
-            <div
-              data-ocid="market.products.loading_state"
-              className="text-center py-12"
-              style={{ color: "#8a9a70" }}
-            >
-              <p className="text-sm">लोड हो रहा है...</p>
-            </div>
-          ) : products.length === 0 ? (
-            <div
-              data-ocid="market.products.empty_state"
-              className="text-center py-12"
-              style={{ color: "#8a9a70" }}
-            >
-              <div className="text-4xl mb-3">🌾</div>
-              <p className="text-sm font-medium">अभी कोई उत्पाद सूचीबद्ध नहीं है</p>
-              <p className="text-xs mt-1">
-                किसान "+ उत्पाद जोड़ें" से अपनी फसल की जानकारी दें
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {products.map((p, idx) => (
-                <Card
-                  key={String(p.id)}
-                  data-ocid={`market.product.item.${idx + 1}`}
-                  className="rounded-xl"
-                  style={{
-                    borderColor: "#c8ddb2",
-                    borderLeft: "4px solid #2D5016",
-                  }}
+              {row.seller && (
+                <div
+                  className="text-[10px] mt-0.5"
+                  style={{ color: "#8a9a70" }}
                 >
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className="text-sm font-bold"
-                            style={{ color: "#2D5016" }}
-                          >
-                            🌾 {p.productName}
-                          </span>
-                          <span
-                            className="text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: "#5a7a40" }}
-                          >
-                            नया
-                          </span>
-                        </div>
-                        {p.quantity && (
-                          <p
-                            className="text-xs mt-0.5"
-                            style={{ color: "#4a5a30" }}
-                          >
-                            📦 मात्रा: {p.quantity}
-                          </p>
-                        )}
-                        <p
-                          className="text-xs font-semibold mt-0.5"
-                          style={{ color: "#2D5016" }}
-                        >
-                          💰 कीमत: {p.pricePerKg}
-                        </p>
-                        {p.contactNumber && (
-                          <a
-                            href={`tel:${p.contactNumber}`}
-                            className="flex items-center gap-1 text-xs mt-1 font-medium"
-                            style={{ color: "#1565c0" }}
-                          >
-                            📞 {p.contactNumber}
-                          </a>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        data-ocid={`market.product.delete_button.${idx + 1}`}
-                        onClick={() => deleteProductMutation.mutate(p.id)}
-                        className="text-red-400 hover:text-red-600 ml-2 text-lg leading-none"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  👤 {row.seller}
+                  {row.phone ? ` · ${row.phone}` : ""}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ── ग्रामीन यातायात सेवा ── */}
-      {activeSubTab === "transport" && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2
-                className="text-lg font-bold"
+            <span
+              className="text-center font-semibold"
+              style={{ color: "#2D5016" }}
+            >
+              {row.price}
+            </span>
+            <div className="flex items-center justify-end gap-1">
+              <span
+                className="font-bold text-base"
                 style={{
-                  color: "#2D5016",
-                  fontFamily: "'Tiro Devanagari Hindi', serif",
+                  color:
+                    row.trend === "up"
+                      ? "#c62828"
+                      : row.trend === "down"
+                        ? "#1565c0"
+                        : "#5a7a40",
                 }}
               >
-                ग्रामीन यातायात सेवा
-              </h2>
-              <p className="text-xs" style={{ color: "#8a9a70" }}>
-                वाहन चालक अपनी गाड़ी की जानकारी यहाँ दें
-              </p>
+                {row.change}
+              </span>
+              <button
+                type="button"
+                data-ocid={`market.edit_button.${idx + 1}`}
+                onClick={() => handleEditOpen(row)}
+                className="text-xs opacity-60 hover:opacity-100 ml-1"
+                title="भाव बदलें"
+              >
+                ✏️
+              </button>
+              {row.isUserAdded && (
+                <button
+                  type="button"
+                  data-ocid={`market.delete_button.${idx + 1}`}
+                  onClick={() => handleDelete(row.id)}
+                  className="text-xs text-red-400 hover:text-red-600 ml-1"
+                  title="हटाएं"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <button
-              type="button"
-              data-ocid="market.add_transport.button"
-              onClick={() => setTransDialogOpen(true)}
-              className="flex items-center gap-1 text-white text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: "#2D5016" }}
-            >
-              + गाड़ी जोड़ें
-            </button>
           </div>
-
-          <Dialog open={transDialogOpen} onOpenChange={setTransDialogOpen}>
-            <DialogContent
-              data-ocid="market.add_transport.dialog"
-              className="mx-4 rounded-2xl"
-            >
-              <DialogHeader>
-                <DialogTitle
-                  style={{
-                    color: "#2D5016",
-                    fontFamily: "'Tiro Devanagari Hindi', serif",
-                  }}
-                >
-                  गाड़ी की जानकारी जोड़ें
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-col gap-3 pt-1">
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    चालक का नाम
-                  </Label>
-                  <Input
-                    data-ocid="market.driver_name.input"
-                    placeholder="जैसे: सुरेश कुमार"
-                    value={transForm.driverName}
-                    onChange={(e) =>
-                      setTransForm((f) => ({
-                        ...f,
-                        driverName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    गाड़ी का प्रकार *
-                  </Label>
-                  <Input
-                    data-ocid="market.vehicle_type.input"
-                    placeholder="जैसे: जीप, टैक्सी, पिकअप"
-                    value={transForm.vehicleType}
-                    onChange={(e) =>
-                      setTransForm((f) => ({
-                        ...f,
-                        vehicleType: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    निकलने का समय
-                  </Label>
-                  <Input
-                    data-ocid="market.departure_time.input"
-                    placeholder="जैसे: सुबह 7:00 बजे"
-                    value={transForm.departureTime}
-                    onChange={(e) =>
-                      setTransForm((f) => ({
-                        ...f,
-                        departureTime: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    गंतव्य स्थान *
-                  </Label>
-                  <Input
-                    data-ocid="market.destination.input"
-                    placeholder="जैसे: हल्द्वानी, नैनीताल"
-                    value={transForm.destination}
-                    onChange={(e) =>
-                      setTransForm((f) => ({
-                        ...f,
-                        destination: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    खाली सीटें
-                  </Label>
-                  <Input
-                    data-ocid="market.available_seats.input"
-                    placeholder="जैसे: 4"
-                    type="number"
-                    min="0"
-                    value={transForm.availableSeats}
-                    onChange={(e) =>
-                      setTransForm((f) => ({
-                        ...f,
-                        availableSeats: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    संपर्क नंबर
-                  </Label>
-                  <Input
-                    data-ocid="market.transport_phone.input"
-                    placeholder="जैसे: 9876543210"
-                    type="tel"
-                    value={transForm.phone}
-                    onChange={(e) =>
-                      setTransForm((f) => ({ ...f, phone: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    data-ocid="market.transport_submit.button"
-                    onClick={handleAddTransport}
-                    disabled={
-                      !transForm.vehicleType.trim() ||
-                      !transForm.destination.trim() ||
-                      addTransportMutation.isPending
-                    }
-                    className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
-                    style={{ background: "#2D5016" }}
-                  >
-                    {addTransportMutation.isPending
-                      ? "जोड़ा जा रहा है..."
-                      : "जोड़ें"}
-                  </button>
-                  <button
-                    type="button"
-                    data-ocid="market.transport_cancel.button"
-                    onClick={() => {
-                      setTransDialogOpen(false);
-                      setTransForm({
-                        driverName: "",
-                        vehicleType: "",
-                        departureTime: "",
-                        destination: "",
-                        availableSeats: "",
-                        phone: "",
-                      });
-                    }}
-                    className="flex-1 font-semibold py-2 rounded-xl text-sm border"
-                    style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
-                  >
-                    रद्द करें
-                  </button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {transportsLoading ? (
-            <div
-              data-ocid="market.transport.loading_state"
-              className="text-center py-12"
-              style={{ color: "#8a9a70" }}
-            >
-              <p className="text-sm">लोड हो रहा है...</p>
-            </div>
-          ) : transports.length === 0 ? (
-            <div
-              data-ocid="market.transport.empty_state"
-              className="text-center py-12"
-              style={{ color: "#8a9a70" }}
-            >
-              <div className="text-4xl mb-3">🚗</div>
-              <p className="text-sm font-medium">अभी कोई गाड़ी सूचीबद्ध नहीं है</p>
-              <p className="text-xs mt-1">
-                वाहन चालक "+ गाड़ी जोड़ें" से अपनी यात्रा की जानकारी दें
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {transports.map((t, idx) => (
-                <Card
-                  key={String(t.id)}
-                  data-ocid={`market.transport.item.${idx + 1}`}
-                  className="rounded-xl"
-                  style={{
-                    borderColor: "#c8ddb2",
-                    borderLeft: "4px solid #5a7a40",
-                  }}
-                >
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className="text-sm font-bold"
-                            style={{ color: "#2D5016" }}
-                          >
-                            🚗 {t.vehicleType}
-                          </span>
-                          <span
-                            className="text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: "#5a7a40" }}
-                          >
-                            उपलब्ध
-                          </span>
-                        </div>
-                        <p
-                          className="text-xs mt-0.5 font-semibold"
-                          style={{ color: "#2D5016" }}
-                        >
-                          📍 गंतव्य: {t.destination}
-                        </p>
-                        {t.departureTime && (
-                          <p
-                            className="text-xs mt-0.5"
-                            style={{ color: "#4a5a30" }}
-                          >
-                            ⏰ समय: {t.departureTime}
-                          </p>
-                        )}
-                        <p
-                          className="text-xs mt-0.5"
-                          style={{ color: "#4a5a30" }}
-                        >
-                          💺 खाली सीटें: {t.availableSeats.toString()}
-                        </p>
-                        {t.contactNumber && (
-                          <a
-                            href={`tel:${t.contactNumber}`}
-                            className="flex items-center gap-1 text-xs mt-1 font-medium"
-                            style={{ color: "#1565c0" }}
-                          >
-                            📞 {t.contactNumber}
-                          </a>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        data-ocid={`market.transport.delete_button.${idx + 1}`}
-                        onClick={() => deleteTransportMutation.mutate(t.id)}
-                        className="text-red-400 hover:text-red-600 ml-2 text-lg leading-none"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        ))}
+      </div>
+      <p className="text-xs mt-3 text-center" style={{ color: "#8a9a70" }}>
+        * भाव प्रतिदिन अपडेट किए जाते हैं
+      </p>
     </div>
   );
 }
 
 function ServicesPage() {
-  const [services, setServices] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bisht_services");
-      return saved ? JSON.parse(saved) : SERVICES;
-    } catch {
-      return SERVICES;
-    }
-  });
-  const [contacts, setContacts] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bisht_emergency");
-      return saved ? JSON.parse(saved) : EMERGENCY;
-    } catch {
-      return EMERGENCY;
-    }
-  });
+  const [services, setServices] = useState(SERVICES);
   const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [editSection, setEditSection] = useState<"services" | "emergency">(
-    "services",
-  );
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editTiming, setEditTiming] = useState("");
-  const [editNumber, setEditNumber] = useState("");
 
-  useEffect(() => {
-    localStorage.setItem("bisht_services", JSON.stringify(services));
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem("bisht_emergency", JSON.stringify(contacts));
-  }, [contacts]);
-
-  function openEditService(idx: number) {
-    setEditSection("services");
+  function openEdit(idx: number) {
     setEditIdx(idx);
     setEditName(services[idx].name);
     setEditPhone(services[idx].phone);
     setEditTiming(services[idx].timing);
   }
 
-  function openEditContact(idx: number) {
-    setEditSection("emergency");
-    setEditIdx(idx);
-    setEditName(contacts[idx].name);
-    setEditNumber(contacts[idx].number);
-  }
-
   function saveEdit() {
     if (editIdx === null) return;
-    if (editSection === "services") {
-      setServices((prev) =>
-        prev.map((s, i) =>
-          i === editIdx
-            ? { ...s, name: editName, phone: editPhone, timing: editTiming }
-            : s,
-        ),
-      );
-    } else {
-      setContacts((prev) =>
-        prev.map((c, i) =>
-          i === editIdx ? { ...c, name: editName, number: editNumber } : c,
-        ),
-      );
-    }
+    setServices((prev) =>
+      prev.map((s, i) =>
+        i === editIdx
+          ? { ...s, name: editName, phone: editPhone, timing: editTiming }
+          : s,
+      ),
+    );
     setEditIdx(null);
   }
 
   return (
     <div className="px-4 py-4 flex flex-col gap-3">
-      {/* Emergency Section */}
-      <div
-        className="rounded-2xl p-3 flex items-center gap-3"
-        style={{ background: "#fff3f3", border: "1px solid #f5c6c6" }}
-      >
-        <span className="text-2xl">⚠️</span>
-        <p className="text-xs" style={{ color: "#c62828" }}>
-          आपातकाल में नीचे दिए गए नंबर पर तुरंत संपर्क करें
-        </p>
-      </div>
       <h2
         className="text-lg font-bold"
-        style={{
-          color: "#2D5016",
-          fontFamily: "'Tiro Devanagari Hindi', serif",
-        }}
-      >
-        आपातकालीन संपर्क
-      </h2>
-      {contacts.map((contact, idx) => (
-        <div
-          key={contact.name}
-          className="relative"
-          data-ocid={`emergency.item.${idx + 1}`}
-        >
-          <a href={`tel:${contact.number}`} className="block">
-            <Card className="card-hover" style={{ borderColor: "#c8ddb2" }}>
-              <CardContent className="p-3 flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
-                  style={{ background: `${contact.color}20` }}
-                >
-                  {contact.icon}
-                </div>
-                <div className="flex-1">
-                  <p
-                    className="font-semibold text-sm"
-                    style={{ color: "#2D5016" }}
-                  >
-                    {contact.name}
-                  </p>
-                  <p
-                    className="text-base font-bold"
-                    style={{ color: contact.color }}
-                  >
-                    {contact.number}
-                  </p>
-                </div>
-                <span
-                  className="text-xs px-2 py-1 rounded-full"
-                  style={{
-                    background: `${contact.color}20`,
-                    color: contact.color,
-                  }}
-                >
-                  कॉल करें
-                </span>
-              </CardContent>
-            </Card>
-          </a>
-          {!contact.isFixed && (
-            <button
-              type="button"
-              data-ocid={`emergency.edit_button.${idx + 1}`}
-              onClick={(e) => {
-                e.preventDefault();
-                openEditContact(idx);
-              }}
-              className="absolute top-2 right-2 text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded z-10"
-              title="संपादित करें"
-            >
-              ✏️
-            </button>
-          )}
-        </div>
-      ))}
-
-      {/* Services Section */}
-      <h2
-        className="text-lg font-bold mt-4"
         style={{
           color: "#2D5016",
           fontFamily: "'Tiro Devanagari Hindi', serif",
@@ -2000,7 +1255,7 @@ function ServicesPage() {
             <button
               type="button"
               data-ocid={`services.edit_button.${idx + 1}`}
-              onClick={() => openEditService(idx)}
+              onClick={() => openEdit(idx)}
               className="text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded"
               title="संपादित करें"
             >
@@ -2025,7 +1280,7 @@ function ServicesPage() {
                 fontFamily: "'Tiro Devanagari Hindi', serif",
               }}
             >
-              {editSection === "emergency" ? "संपर्क संपादित करें" : "सेवा संपादित करें"}
+              सेवा संपादित करें
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-2">
@@ -2041,47 +1296,30 @@ function ServicesPage() {
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
-            {editSection === "emergency" ? (
-              <div>
-                <Label
-                  className="text-xs mb-1 block"
-                  style={{ color: "#2D5016" }}
-                >
-                  नंबर
-                </Label>
-                <Input
-                  value={editNumber}
-                  onChange={(e) => setEditNumber(e.target.value)}
-                />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    फोन
-                  </Label>
-                  <Input
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    समय
-                  </Label>
-                  <Input
-                    value={editTiming}
-                    onChange={(e) => setEditTiming(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                फोन
+              </Label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                समय
+              </Label>
+              <Input
+                value={editTiming}
+                onChange={(e) => setEditTiming(e.target.value)}
+              />
+            </div>
             <div className="flex gap-2 justify-end pt-1">
               <Button
                 variant="outline"
@@ -2165,115 +1403,38 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
     enabled: !!actor && !isFetching,
   });
 
-  const compressImage = (
-    file: File,
-    quality = 0.5,
-  ): Promise<Uint8Array<ArrayBuffer>> => {
-    return new Promise((resolve, reject) => {
-      if (!file.type.startsWith("image/")) {
-        file
-          .arrayBuffer()
-          .then((b) => resolve(new Uint8Array(b)))
-          .catch(reject);
-        return;
-      }
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        const maxDim = 800;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (b) => {
-            if (!b) {
-              reject(new Error("Compression failed"));
-              return;
-            }
-            b.arrayBuffer()
-              .then((ab) => resolve(new Uint8Array(ab)))
-              .catch(reject);
-          },
-          "image/jpeg",
-          quality,
-        );
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Image load failed"));
-      };
-      img.src = url;
-    });
-  };
-
   const handleUpload = async () => {
     if (!actor || !uploadTitle.trim() || !uploadFile) return;
-    const maxPhotoSize = 20 * 1024 * 1024; // 20MB
+    const maxPhotoSize = 10 * 1024 * 1024; // 10MB
     if (uploadFile.size > maxPhotoSize) {
-      toast.error("फोटो 20MB से बड़ी नहीं होनी चाहिए। कृपया छोटी फोटो चुनें।");
+      toast.error("फोटो 10MB से बड़ी नहीं होनी चाहिए। कृपया छोटी फोटो चुनें।");
       return;
     }
     setIsUploading(true);
     setUploadProgress(0);
-    let lastError: unknown = null;
-    const qualities = [0.7, 0.5, 0.4, 0.3, 0.2];
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const quality = qualities[attempt] ?? 0.2;
-        const bytes = await compressImage(uploadFile, quality);
-        const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
-          setUploadProgress(pct);
-        });
-        await actor.addPhoto(uploadTitle.trim(), blob);
-        toast.success("फोटो सफलतापूर्वक अपलोड हो गई! 🎉");
-        queryClient.invalidateQueries({ queryKey: ["photos"] });
-        setUploadOpen(false);
-        setUploadTitle("");
-        setUploadFile(null);
-        setUploadProgress(0);
-        setIsUploading(false);
-        return;
-      } catch (e) {
-        lastError = e;
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error(`Photo upload attempt ${attempt + 1} failed:`, msg);
-        if (attempt < 4) {
-          const delay =
-            msg.includes("v3") || msg.includes("Expected") ? 2000 : 1500;
-          toast.loading(`अपलोड हो रहा है... प्रयास ${attempt + 2}/5`, {
-            id: "upload-retry",
-          });
-          await new Promise((r) => setTimeout(r, delay));
-          toast.dismiss("upload-retry");
-          setUploadProgress(0);
-        }
+    try {
+      const bytes = new Uint8Array(await uploadFile.arrayBuffer());
+      const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
+        setUploadProgress(pct);
+      });
+      await actor.addPhoto(uploadTitle.trim(), blob);
+      toast.success("फोटो सफलतापूर्वक अपलोड हो गई! 🎉");
+      queryClient.invalidateQueries({ queryKey: ["photos"] });
+      setUploadOpen(false);
+      setUploadTitle("");
+      setUploadFile(null);
+      setUploadProgress(0);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("Photo upload error:", e);
+      if (msg.includes("size") || msg.includes("large")) {
+        toast.error("फोटो बहुत बड़ी है। 10MB से छोटी फोटो चुनें।");
+      } else {
+        toast.error(`फोटो अपलोड नहीं हो सकी: ${msg.slice(0, 80)}`);
       }
+    } finally {
+      setIsUploading(false);
     }
-    const msg =
-      lastError instanceof Error ? lastError.message : String(lastError);
-    if (msg.includes("size") || msg.includes("large")) {
-      toast.error("फोटो बहुत बड़ी है। छोटी फोटो चुनें।");
-    } else if (msg.includes("unauthorized") || msg.includes("Unauthorized")) {
-      toast.error("अपलोड की अनुमति नहीं। Page refresh करें और दोबारा try करें।");
-    } else if (msg.includes("v3") || msg.includes("Expected")) {
-      toast.error("नेटवर्क समस्या है। कुछ देर बाद दोबारा try करें।");
-    } else {
-      toast.error("फोटो अपलोड नहीं हो सकी। कृपया दोबारा प्रयास करें।");
-    }
-    setIsUploading(false);
   };
 
   const closeUploadDialog = () => {
@@ -2297,48 +1458,26 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
     if (!actor || !videoTitle.trim() || !videoFile || videoSizeError) return;
     setIsVideoUploading(true);
     setVideoProgress(0);
-    let lastErr: unknown = null;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const bytes = new Uint8Array(await videoFile.arrayBuffer());
-        const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
-          setVideoProgress(pct);
-        });
-        await actor.addVideo(videoTitle.trim(), blob);
-        toast.success("वीडियो सफलतापूर्वक अपलोड हो गया! 🎉");
-        queryClient.invalidateQueries({ queryKey: ["videos"] });
-        setVideoUploadOpen(false);
-        setVideoTitle("");
-        setVideoFile(null);
-        setVideoProgress(0);
-        setVideoSizeError(null);
-        setIsVideoUploading(false);
-        return;
-      } catch (e) {
-        lastErr = e;
-        const msg2 = e instanceof Error ? e.message : String(e);
-        console.error(`Video upload attempt ${attempt + 1} failed:`, msg2);
-        if (attempt < 4) {
-          const delay =
-            msg2.includes("v3") || msg2.includes("Expected") ? 2000 : 1500;
-          toast.loading(`वीडियो अपलोड हो रहा है... प्रयास ${attempt + 2}/5`, {
-            id: "video-retry",
-          });
-          await new Promise((r) => setTimeout(r, delay));
-          toast.dismiss("video-retry");
-          setVideoProgress(0);
-        }
-      }
+    try {
+      const bytes = new Uint8Array(await videoFile.arrayBuffer());
+      const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) => {
+        setVideoProgress(pct);
+      });
+      await actor.addVideo(videoTitle.trim(), blob);
+      toast.success("वीडियो सफलतापूर्वक अपलोड हो गया! 🎉");
+      queryClient.invalidateQueries({ queryKey: ["videos"] });
+      setVideoUploadOpen(false);
+      setVideoTitle("");
+      setVideoFile(null);
+      setVideoProgress(0);
+      setVideoSizeError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("Video upload error:", e);
+      toast.error(`वीडियो अपलोड नहीं हो सका: ${msg.slice(0, 80)}`);
+    } finally {
+      setIsVideoUploading(false);
     }
-    const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
-    if (msg.includes("unauthorized") || msg.includes("Unauthorized")) {
-      toast.error("अपलोड की अनुमति नहीं। Page refresh करें और दोबारा try करें।");
-    } else if (msg.includes("v3") || msg.includes("Expected")) {
-      toast.error("नेटवर्क समस्या है। कुछ देर बाद दोबारा try करें।");
-    } else {
-      toast.error("वीडियो अपलोड नहीं हो सका। कृपया दोबारा प्रयास करें।");
-    }
-    setIsVideoUploading(false);
   };
 
   const closeVideoUploadDialog = () => {
@@ -3060,6 +2199,174 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
   );
 }
 
+function EmergencyPage() {
+  const [contacts, setContacts] = useState(EMERGENCY);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editNumber, setEditNumber] = useState("");
+
+  function openEdit(idx: number) {
+    setEditIdx(idx);
+    setEditName(contacts[idx].name);
+    setEditNumber(contacts[idx].number);
+  }
+
+  function saveEdit() {
+    if (editIdx === null) return;
+    setContacts((prev) =>
+      prev.map((c, i) =>
+        i === editIdx ? { ...c, name: editName, number: editNumber } : c,
+      ),
+    );
+    setEditIdx(null);
+  }
+
+  return (
+    <div className="px-4 py-4 flex flex-col gap-3">
+      <div
+        className="rounded-2xl p-3 flex items-center gap-3"
+        style={{ background: "#fff3f3", border: "1px solid #f5c6c6" }}
+      >
+        <span className="text-2xl">⚠️</span>
+        <p className="text-xs" style={{ color: "#c62828" }}>
+          आपातकाल में नीचे दिए गए नंबर पर तुरंत संपर्क करें
+        </p>
+      </div>
+      <h2
+        className="text-lg font-bold"
+        style={{
+          color: "#2D5016",
+          fontFamily: "'Tiro Devanagari Hindi', serif",
+        }}
+      >
+        आपातकालीन संपर्क
+      </h2>
+      {contacts.map((contact, idx) => (
+        <div
+          key={contact.name}
+          className="relative"
+          data-ocid={`emergency.item.${idx + 1}`}
+        >
+          <a href={`tel:${contact.number}`} className="block">
+            <Card className="card-hover" style={{ borderColor: "#c8ddb2" }}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
+                  style={{ background: `${contact.color}20` }}
+                >
+                  {contact.icon}
+                </div>
+                <div className="flex-1">
+                  <p
+                    className="font-semibold text-sm"
+                    style={{ color: "#2D5016" }}
+                  >
+                    {contact.name}
+                  </p>
+                  <p
+                    className="text-base font-bold"
+                    style={{ color: contact.color }}
+                  >
+                    {contact.number}
+                  </p>
+                </div>
+                <span
+                  className="text-xs px-2 py-1 rounded-full"
+                  style={{
+                    background: `${contact.color}20`,
+                    color: contact.color,
+                  }}
+                >
+                  कॉल करें
+                </span>
+              </CardContent>
+            </Card>
+          </a>
+          {!contact.isFixed && (
+            <button
+              type="button"
+              data-ocid={`emergency.edit_button.${idx + 1}`}
+              onClick={(e) => {
+                e.preventDefault();
+                openEdit(idx);
+              }}
+              className="absolute top-2 right-2 text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded z-10"
+              title="संपादित करें"
+            >
+              ✏️
+            </button>
+          )}
+        </div>
+      ))}
+
+      <Dialog
+        open={editIdx !== null}
+        onOpenChange={(o) => !o && setEditIdx(null)}
+      >
+        <DialogContent
+          data-ocid="emergency.edit.dialog"
+          className="max-w-sm mx-4"
+        >
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              संपर्क संपादित करें
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-2">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नाम
+              </Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                नंबर
+              </Label>
+              <Input
+                value={editNumber}
+                onChange={(e) => setEditNumber(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditIdx(null)}
+              >
+                रद्द करें
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveEdit}
+                style={{ background: "#2D5016" }}
+              >
+                सहेजें
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── People Page ─────────────────────────────────────────────────────────────
+
 function PeoplePage() {
   const { actor, isFetching: actorLoading } = useActor();
   const queryClient = useQueryClient();
@@ -3096,13 +2403,8 @@ function PeoplePage() {
       setDescription("");
       toast.success("जानकारी सफलतापूर्वक सेव हो गई! 🎉");
     },
-    onError: (err) => {
-      console.error("addPerson error:", err);
-      if (!actor) {
-        toast.error("कनेक्शन नहीं है, Page refresh करें");
-      } else {
-        toast.error("जानकारी सेव नहीं हो सकी, कृपया दोबारा प्रयास करें।");
-      }
+    onError: () => {
+      toast.error("जानकारी सेव नहीं हो सकी, कृपया दोबारा प्रयास करें।");
     },
   });
 
@@ -3503,65 +2805,133 @@ function AdminPage({
   );
 }
 
-function Footer({
-  isAdmin,
-  onAdminClaimed,
-  onLogout,
-}: {
-  isAdmin?: boolean;
-  onAdminClaimed?: () => void;
-  onLogout?: () => void;
-}) {
-  const [showPwField, setShowPwField] = useState(false);
+function AdminClaimForm({ onAdminClaimed }: { onAdminClaimed?: () => void }) {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
   const [password, setPassword] = useState("");
-  const [pwError, setPwError] = useState(false);
-  const [photoError, setPhotoError] = useState(false);
-  const [photoSrc, setPhotoSrc] = useState(
-    "/assets/uploads/WhatsApp-Image-2024-10-24-at-11.38.25-2-1.jpeg",
-  );
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
 
-  function handleAdminLogin() {
-    if (password === "bisht@admin2024") {
-      localStorage.setItem("bisht_admin", "true");
-      setPassword("");
-      setShowPwField(false);
-      setPwError(false);
-      onAdminClaimed?.();
-    } else {
-      setPwError(true);
+  async function handleClaim() {
+    if (!actor || !password) return;
+    setStatus("loading");
+    try {
+      const result = await (actor as any).claimAdminRole(password);
+      if (result) {
+        setStatus("success");
+        await queryClient.refetchQueries({ queryKey: ["isAdmin"] });
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
     }
   }
 
+  if (status === "success") {
+    return (
+      <div className="flex flex-col items-center gap-1 mt-1">
+        <p className="text-xs" style={{ color: "#2D5016" }}>
+          ✅ एडमिन बन गए!
+        </p>
+        <button
+          type="button"
+          data-ocid="admin.panel.button"
+          onClick={() => {
+            onAdminClaimed?.();
+            window.location.hash = "#admin";
+            window.location.reload();
+          }}
+          className="text-xs px-3 py-1 rounded-lg font-semibold"
+          style={{ background: "#2D5016", color: "white" }}
+        >
+          👉 एडमिन पैनल देखें
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex flex-col items-center gap-1">
+      <div className="flex items-center gap-1">
+        <input
+          type="password"
+          placeholder="एडमिन पासवर्ड"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setStatus("idle");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleClaim();
+          }}
+          data-ocid="admin.input"
+          className="text-xs px-2 py-1 rounded border outline-none"
+          style={{
+            borderColor: "#c0b99a",
+            background: "#faf7f0",
+            color: "#3a3328",
+            width: "140px",
+          }}
+          disabled={status === "loading"}
+        />
+        <button
+          type="button"
+          data-ocid="admin.submit_button"
+          onClick={handleClaim}
+          disabled={status === "loading" || !password}
+          className="text-xs px-2 py-1 rounded font-semibold disabled:opacity-50"
+          style={{ background: "#2D5016", color: "white" }}
+        >
+          {status === "loading" ? "..." : "✓ एडमिन बनें"}
+        </button>
+      </div>
+      {status === "error" && (
+        <p
+          data-ocid="admin.error_state"
+          className="text-xs"
+          style={{ color: "#c62828" }}
+        >
+          ❌ गलत पासवर्ड
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Footer({
+  isAdmin,
+  identity,
+  onLogin,
+  onLogout,
+  onAdminTab,
+  onAdminClaimed,
+  isLoggingIn,
+  isLoginError,
+}: {
+  isAdmin?: boolean;
+  identity?: unknown;
+  onLogin?: () => void;
+  onLogout?: () => void;
+  onAdminTab?: () => void;
+  onAdminClaimed?: () => void;
+  isLoggingIn?: boolean;
+  isLoginError?: boolean;
+  loginError?: Error;
+}) {
   return (
     <div
       className="text-center py-3 text-xs"
       style={{ color: "#8a9a70", borderTop: "1px solid #e0dac8" }}
     >
       <div className="flex items-center justify-center gap-2 mb-1">
-        {photoError ? (
-          <div
-            className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-white font-bold text-sm"
-            style={{ borderColor: "#2D5016", background: "#2D5016" }}
-          >
-            GB
-          </div>
-        ) : (
-          <img
-            src={photoSrc}
-            alt="Gaurav Bisht"
-            className="w-12 h-12 rounded-full object-cover object-top border-2"
-            style={{ borderColor: "#2D5016" }}
-            onError={() => {
-              if (photoSrc.includes("-1-1.jpeg")) {
-                setPhotoSrc(
-                  "/assets/uploads/WhatsApp-Image-2024-10-24-at-11.38.25-2-1.jpeg",
-                );
-              } else {
-                setPhotoError(true);
-              }
-            }}
-          />
-        )}
+        <img
+          src="/assets/uploads/WhatsApp-Image-2024-10-24-at-11.38.25-1.jpeg"
+          alt="Gaurav Bisht"
+          className="w-8 h-8 rounded-full object-cover border-2"
+          style={{ borderColor: "#2D5016" }}
+        />
         <span>
           Created by{" "}
           <span style={{ color: "#2D5016", fontWeight: 600 }}>
@@ -3580,230 +2950,85 @@ function Footer({
           Built with caffeine.ai
         </a>
       </p>
-      <div className="mt-2 flex flex-col items-center gap-1">
-        {isAdmin ? (
-          <button
-            type="button"
-            data-ocid="admin.logout_button"
-            onClick={onLogout}
-            className="text-xs px-3 py-1 rounded-lg"
-            style={{ color: "#c62828", border: "1px solid #f5c6c6" }}
-          >
-            लॉगआउट
-          </button>
-        ) : showPwField ? (
-          <div className="flex flex-col items-center gap-1">
-            <div className="flex items-center gap-1">
-              <input
-                type="password"
-                placeholder="एडमिन पासवर्ड"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setPwError(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAdminLogin();
-                }}
-                data-ocid="admin.input"
-                className="text-xs px-2 py-1 rounded border outline-none"
-                style={{
-                  borderColor: "#c0b99a",
-                  background: "#faf7f0",
-                  color: "#3a3328",
-                  width: "140px",
-                }}
-              />
+      <div className="mt-2">
+        {identity ? (
+          <div className="flex items-center justify-center gap-2 flex-col">
+            <div className="flex items-center justify-center gap-2">
+              {isAdmin && (
+                <button
+                  type="button"
+                  data-ocid="admin.open_modal_button"
+                  onClick={onAdminTab}
+                  className="text-xs px-2 py-1 rounded-lg font-semibold"
+                  style={{ background: "#2D5016", color: "white" }}
+                >
+                  🔐 एडमिन पैनल
+                </button>
+              )}
               <button
                 type="button"
-                data-ocid="admin.submit_button"
-                onClick={handleAdminLogin}
-                disabled={!password}
-                className="text-xs px-2 py-1 rounded font-semibold disabled:opacity-50"
-                style={{ background: "#2D5016", color: "white" }}
+                data-ocid="admin.logout_button"
+                onClick={onLogout}
+                className="text-xs px-2 py-1 rounded-lg"
+                style={{ color: "#c62828", border: "1px solid #f5c6c6" }}
               >
-                ✓ एडमिन
-              </button>
-              <button
-                type="button"
-                data-ocid="admin.cancel_button"
-                onClick={() => {
-                  setShowPwField(false);
-                  setPassword("");
-                  setPwError(false);
-                }}
-                className="text-xs px-2 py-1 rounded"
-                style={{ color: "#8a9a70", border: "1px solid #c0b99a" }}
-              >
-                ✕
+                लॉगआउट
               </button>
             </div>
-            {pwError && (
-              <p
-                data-ocid="admin.error_state"
-                className="text-xs"
-                style={{ color: "#c62828" }}
-              >
-                ❌ गलत पासवर्ड
-              </p>
+            {identity && !isAdmin && (
+              <AdminClaimForm onAdminClaimed={onAdminClaimed} />
             )}
           </div>
         ) : (
-          <button
-            type="button"
-            data-ocid="admin.login_button"
-            onClick={() => setShowPwField(true)}
-            className="text-xs px-3 py-1.5 rounded-lg font-semibold border"
-            style={{
-              color: "#2D5016",
-              borderColor: "#2D5016",
-              background: "rgba(45,80,22,0.07)",
-            }}
-          >
-            🔐 Admin
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              data-ocid="admin.login_button"
+              onClick={onLogin}
+              disabled={isLoggingIn}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold border disabled:opacity-60"
+              style={{
+                color: "#2D5016",
+                borderColor: "#2D5016",
+                background: "rgba(45,80,22,0.07)",
+              }}
+            >
+              {isLoggingIn ? "लॉगिन हो रहा है..." : "🔐 Admin"}
+            </button>
+            {isLoginError && (
+              <p className="text-xs" style={{ color: "#c62828" }}>
+                लॉगिन में समस्या आई। पुनः प्रयास करें।
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
+
 // ─── App ───────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>(
     window.location.hash === "#admin" ? "admin" : "home",
   );
+  const { login, clear, identity, isLoggingIn, isLoginError, loginError } =
+    useInternetIdentity();
   const { actor, isFetching } = useActor();
-  const [isAdmin, setIsAdmin] = useState(
-    () => localStorage.getItem("bisht_admin") === "true",
-  );
-  const [newsList, setNewsList] = useState<NewsItem[]>(INITIAL_NEWS);
 
-  // Inject animation CSS
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.id = "bisht-animations";
-    style.textContent = `
-      @keyframes marquee {
-        0% { transform: translateX(100vw); }
-        100% { transform: translateX(-100%); }
-      }
-      @keyframes slideUp {
-        from { opacity: 0; transform: translateY(16px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    `;
-    if (!document.getElementById("bisht-animations")) {
-      document.head.appendChild(style);
-    }
-    return () => {
-      const existing = document.getElementById("bisht-animations");
-      if (existing) existing.remove();
-    };
-  }, []);
-
-  // ── Notification polling: show toast when new photos/videos/persons added ──
-  useEffect(() => {
-    if (!actor || isFetching) return;
-
-    const initAndPoll = async () => {
+  const { data: isAdmin } = useQuery({
+    queryKey: ["isAdmin"],
+    queryFn: async () => {
+      if (!actor) return false;
       try {
-        const [photos, videos, persons] = await Promise.all([
-          (actor as any).getPhotos(),
-          (actor as any).getVideos(),
-          (actor as any).getPersons(),
-        ]);
-        const pCount = (photos as any[]).length;
-        const vCount = (videos as any[]).length;
-        const peCount = (persons as any[]).length;
-
-        // Initialize baseline if not set
-        if (!localStorage.getItem("bisht_photos_count")) {
-          localStorage.setItem("bisht_photos_count", String(pCount));
-        }
-        if (!localStorage.getItem("bisht_videos_count")) {
-          localStorage.setItem("bisht_videos_count", String(vCount));
-        }
-        if (!localStorage.getItem("bisht_persons_count")) {
-          localStorage.setItem("bisht_persons_count", String(peCount));
-        }
-      } catch (_) {}
-    };
-
-    initAndPoll();
-
-    const interval = setInterval(async () => {
-      try {
-        const [photos, videos, persons] = await Promise.all([
-          (actor as any).getPhotos(),
-          (actor as any).getVideos(),
-          (actor as any).getPersons(),
-        ]);
-        const pCount = (photos as any[]).length;
-        const vCount = (videos as any[]).length;
-        const peCount = (persons as any[]).length;
-
-        const prevP = Number(
-          localStorage.getItem("bisht_photos_count") ?? pCount,
-        );
-        const prevV = Number(
-          localStorage.getItem("bisht_videos_count") ?? vCount,
-        );
-        const prevPe = Number(
-          localStorage.getItem("bisht_persons_count") ?? peCount,
-        );
-
-        if (pCount > prevP) {
-          toast.success("📸 नई फ़ोटो जोड़ी गई!", { duration: 5000 });
-          localStorage.setItem("bisht_photos_count", String(pCount));
-        }
-        if (vCount > prevV) {
-          toast.success("🎥 नया वीडियो जोड़ा गया!", { duration: 5000 });
-          localStorage.setItem("bisht_videos_count", String(vCount));
-        }
-        if (peCount > prevPe) {
-          toast.success("👤 नया व्यक्ति जोड़ा गया!", { duration: 5000 });
-          localStorage.setItem("bisht_persons_count", String(peCount));
-        }
-
-        // News notifications (localStorage-based cross-tab sync)
-        const newsCount = Number(localStorage.getItem("bisht_news_count") ?? 0);
-        const prevNews = Number(
-          localStorage.getItem("bisht_news_count_prev") ?? newsCount,
-        );
-        if (newsCount > prevNews) {
-          toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
-        }
-        localStorage.setItem("bisht_news_count_prev", String(newsCount));
-
-        // Product notifications
-        const prodCount = Number(
-          localStorage.getItem("bisht_products_count") ?? 0,
-        );
-        const prevProd2 = Number(
-          localStorage.getItem("bisht_products_count_prev") ?? prodCount,
-        );
-        if (prodCount > prevProd2) {
-          toast.success("🌾 नया उत्पाद जोड़ा गया!", { duration: 5000 });
-        }
-        localStorage.setItem("bisht_products_count_prev", String(prodCount));
-
-        // Transport notifications
-        const transCount = Number(
-          localStorage.getItem("bisht_transport_count") ?? 0,
-        );
-        const prevTrans2 = Number(
-          localStorage.getItem("bisht_transport_count_prev") ?? transCount,
-        );
-        if (transCount > prevTrans2) {
-          toast.success("🚗 नई यातायात सेवा जोड़ी गई!", { duration: 5000 });
-        }
-        localStorage.setItem("bisht_transport_count_prev", String(transCount));
-      } catch (_) {}
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [actor, isFetching]);
+        return await (actor as any).isCallerAdmin();
+      } catch {
+        return false;
+      }
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
 
   const {
     data: villageInfo,
@@ -3836,11 +3061,7 @@ export default function App() {
         position: "relative",
       }}
     >
-      <Toaster
-        position="top-center"
-        richColors
-        toastOptions={{ duration: 5000, style: { fontSize: "16px" } }}
-      />
+      <Toaster position="top-center" richColors />
 
       {/* Top Header */}
       <header
@@ -3890,15 +3111,13 @@ export default function App() {
           <HomePage
             villageInfo={villageInfo}
             isVillageLoading={isVillageLoading}
-            newsList={newsList}
           />
         )}
-        {activeTab === "news" && (
-          <NewsPage newsList={newsList} setNewsList={setNewsList} />
-        )}
+        {activeTab === "news" && <NewsPage />}
         {activeTab === "market" && <MarketPage />}
         {activeTab === "services" && <ServicesPage />}
         {activeTab === "photos" && <PhotosPage isAdmin={!!isAdmin} />}
+        {activeTab === "emergency" && <EmergencyPage />}
         {activeTab === "people" && <PeoplePage />}
         {activeTab === "admin" && (
           <AdminPage
@@ -3907,15 +3126,15 @@ export default function App() {
           />
         )}
         <Footer
-          isAdmin={isAdmin}
-          onAdminClaimed={() => {
-            setIsAdmin(true);
-            setActiveTab("admin");
-          }}
-          onLogout={() => {
-            localStorage.removeItem("bisht_admin");
-            setIsAdmin(false);
-          }}
+          isAdmin={!!isAdmin}
+          identity={identity}
+          onLogin={login}
+          onLogout={clear}
+          onAdminTab={() => setActiveTab("admin")}
+          onAdminClaimed={() => setActiveTab("admin")}
+          isLoggingIn={isLoggingIn}
+          isLoginError={isLoginError}
+          loginError={loginError}
         />
       </main>
 

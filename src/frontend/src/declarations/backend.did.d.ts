@@ -23,11 +23,41 @@ export interface GalleryVideo {
   'blob' : ExternalBlob,
   'uploadedAt' : bigint,
 }
+export interface GraminProduct {
+  'id' : bigint,
+  'pricePerKg' : string,
+  'productName' : string,
+  'pricePerQtl' : string,
+  'addedAt' : bigint,
+  'quantity' : string,
+  'contactNumber' : string,
+}
 export interface Person {
   'name' : string,
   'profession' : string,
   'description' : [] | [string],
   'phoneNumber' : [] | [string],
+}
+export interface TransportEntry {
+  'id' : bigint,
+  'vehicleType' : string,
+  'destination' : string,
+  'departureTime' : string,
+  'addedAt' : bigint,
+  'availableSeats' : bigint,
+  'contactNumber' : string,
+}
+export interface UserProfile { 'name' : string }
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
+export interface VillageInfo {
+  'literacy' : string,
+  'area' : string,
+  'name' : string,
+  'slogan' : string,
+  'houses' : string,
+  'population' : string,
 }
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
@@ -56,18 +86,46 @@ export interface _SERVICE {
     _CaffeineStorageRefillResult
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addPerson' : ActorMethod<
     [string, string, [] | [string], [] | [string]],
     undefined
   >,
   'addPhoto' : ActorMethod<[string, ExternalBlob], bigint>,
+  'addProduct' : ActorMethod<[string, string, string, string, string], bigint>,
+  'addTransport' : ActorMethod<
+    [string, string, string, bigint, string],
+    bigint
+  >,
   'addVideo' : ActorMethod<[string, ExternalBlob], bigint>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'claimAdminRole' : ActorMethod<[string], boolean>,
+  'deletePhoto' : ActorMethod<[bigint], undefined>,
+  'deleteProduct' : ActorMethod<[bigint], undefined>,
+  'deleteTransport' : ActorMethod<[bigint], undefined>,
+  'deleteVideo' : ActorMethod<[bigint], undefined>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getPerson' : ActorMethod<[string], [] | [Person]>,
   'getPersons' : ActorMethod<[], Array<Person>>,
   'getPhoto' : ActorMethod<[bigint], [] | [GalleryPhoto]>,
   'getPhotos' : ActorMethod<[], Array<GalleryPhoto>>,
+  'getProduct' : ActorMethod<[bigint], [] | [GraminProduct]>,
+  'getProducts' : ActorMethod<[], Array<GraminProduct>>,
+  'getTransport' : ActorMethod<[bigint], [] | [TransportEntry]>,
+  'getTransports' : ActorMethod<[], Array<TransportEntry>>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getVideo' : ActorMethod<[bigint], [] | [GalleryVideo]>,
   'getVideos' : ActorMethod<[], Array<GalleryVideo>>,
+  'getVillageInfo' : ActorMethod<[], VillageInfo>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
+  'populateDemoProducts' : ActorMethod<[], undefined>,
+  'populateDemoTransports' : ActorMethod<[], undefined>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'updateVillageInfo' : ActorMethod<
+    [string, string, string, string, string, string],
+    undefined
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
