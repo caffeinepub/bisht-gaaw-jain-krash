@@ -1,34 +1,27 @@
-# बिष्ट गाँव जैन क्रांश
+# Bisht Gaaw Jain Krash
 
 ## Current State
-- Photo/video upload fails with "Expected v3 response body" error in StorageClient.ts `getCertificate()` method
-- addProduct and addPerson mutations silently fail with generic error toast
-- StorageClient.getCertificate() only handles v3 IC responses, throws error for v2 responses
-- Mutation error handlers show generic Hindi messages with no retry capability
+App has backend persistence for: persons, products, transport, photos, videos, village info.
+News, Services, Emergency Contacts, and Quick Services are stored in frontend localStorage — these are lost on page refresh/rebuild.
 
 ## Requested Changes (Diff)
 
 ### Add
-- v2 IC response fallback in StorageClient.getCertificate() using @dfinity/agent polling approach
-- Retry logic for addProduct and addPerson mutations (3 retries with delay)
-- Better error messages showing exact failure reason
-- Actor readiness check before mutations with "Page refresh karein" prompt
+- Backend types and CRUD for NewsItem (id, title, body, tag, date)
+- Backend types and CRUD for ServiceContact (id, name, phone, timing, type: 'service'|'emergency')
+- Backend types and CRUD for QuickService (id, icon, label, detail)
 
 ### Modify
-- StorageClient.ts: getCertificate() to handle both v2 and v3 IC response bodies
-- addProductMutation onError: show retry button or auto-retry
-- addMutation (people) onError: more specific error message
-- Photo/video upload: reduce initial image size from 1920px to 1200px max dimension to prevent large uploads
+- Frontend: Replace localStorage for news with backend addNews/updateNews/deleteNews/getNews calls
+- Frontend: Replace localStorage for services/emergency with backend addServiceContact/updateServiceContact/deleteServiceContact/getServiceContacts
+- Frontend: Replace in-memory quickServices state with backend addQuickService/updateQuickService/deleteQuickService/getQuickServices
 
 ### Remove
-- Nothing removed
+- All localStorage.setItem/getItem calls for bisht_services, bisht_emergency, bisht_news_count
 
 ## Implementation Plan
-1. Fix StorageClient.ts getCertificate() to handle v2 responses:
-   - Check if result has requestId (v2 case)
-   - For v2, use @dfinity/agent or @icp-sdk/core polling to read state and get certificate
-   - Alternatively, decode the Candid reply if it contains the certificate directly
-2. Add retry logic in addProduct mutation (3 attempts, 1.5s delay)
-3. Add retry logic in addPerson/addMutation (3 attempts, 1.5s delay)
-4. Add actor null check with user-friendly Hindi message "पेज refresh करें"
-5. Keep all other features intact
+1. Add News, ServiceContact, QuickService types to Motoko backend
+2. Add CRUD functions for each new type (open to all callers, no auth check for add/update)
+3. Regenerate backend.d.ts bindings
+4. Update frontend to load all data from backend on mount
+5. Update all add/edit/delete handlers to call backend and refresh data

@@ -32,11 +32,31 @@ export interface GraminProduct {
   'quantity' : string,
   'contactNumber' : string,
 }
+export interface NewsItem {
+  'id' : bigint,
+  'tag' : string,
+  'title' : string,
+  'body' : string,
+  'date' : string,
+}
 export interface Person {
   'name' : string,
   'profession' : string,
   'description' : [] | [string],
   'phoneNumber' : [] | [string],
+}
+export interface QuickService {
+  'id' : bigint,
+  'icon' : string,
+  'name' : string,
+  'detail' : string,
+}
+export interface ServiceContact {
+  'id' : bigint,
+  'contactType' : string,
+  'timing' : string,
+  'name' : string,
+  'phone' : string,
 }
 export interface TransportEntry {
   'id' : bigint,
@@ -87,12 +107,15 @@ export interface _SERVICE {
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addNews' : ActorMethod<[string, string, string, string], bigint>,
   'addPerson' : ActorMethod<
     [string, string, [] | [string], [] | [string]],
     undefined
   >,
   'addPhoto' : ActorMethod<[string, ExternalBlob], bigint>,
   'addProduct' : ActorMethod<[string, string, string, string, string], bigint>,
+  'addQuickService' : ActorMethod<[string, string, string], bigint>,
+  'addServiceContact' : ActorMethod<[string, string, string, string], bigint>,
   'addTransport' : ActorMethod<
     [string, string, string, bigint, string],
     bigint
@@ -100,18 +123,25 @@ export interface _SERVICE {
   'addVideo' : ActorMethod<[string, ExternalBlob], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'claimAdminRole' : ActorMethod<[string], boolean>,
+  'deleteNews' : ActorMethod<[bigint], undefined>,
+  'deletePerson' : ActorMethod<[string], undefined>,
   'deletePhoto' : ActorMethod<[bigint], undefined>,
   'deleteProduct' : ActorMethod<[bigint], undefined>,
+  'deleteQuickService' : ActorMethod<[bigint], undefined>,
+  'deleteServiceContact' : ActorMethod<[bigint], undefined>,
   'deleteTransport' : ActorMethod<[bigint], undefined>,
   'deleteVideo' : ActorMethod<[bigint], undefined>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getNews' : ActorMethod<[], Array<NewsItem>>,
   'getPerson' : ActorMethod<[string], [] | [Person]>,
   'getPersons' : ActorMethod<[], Array<Person>>,
   'getPhoto' : ActorMethod<[bigint], [] | [GalleryPhoto]>,
   'getPhotos' : ActorMethod<[], Array<GalleryPhoto>>,
   'getProduct' : ActorMethod<[bigint], [] | [GraminProduct]>,
   'getProducts' : ActorMethod<[], Array<GraminProduct>>,
+  'getQuickServices' : ActorMethod<[], Array<QuickService>>,
+  'getServiceContacts' : ActorMethod<[], Array<ServiceContact>>,
   'getTransport' : ActorMethod<[bigint], [] | [TransportEntry]>,
   'getTransports' : ActorMethod<[], Array<TransportEntry>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
@@ -122,6 +152,30 @@ export interface _SERVICE {
   'populateDemoProducts' : ActorMethod<[], undefined>,
   'populateDemoTransports' : ActorMethod<[], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'updateNews' : ActorMethod<
+    [bigint, string, string, string, string],
+    undefined
+  >,
+  'updatePerson' : ActorMethod<
+    [string, string, string, [] | [string], [] | [string]],
+    undefined
+  >,
+  'updateProduct' : ActorMethod<
+    [bigint, string, string, string, string, string],
+    undefined
+  >,
+  'updateQuickService' : ActorMethod<
+    [bigint, string, string, string],
+    undefined
+  >,
+  'updateServiceContact' : ActorMethod<
+    [bigint, string, string, string, string],
+    undefined
+  >,
+  'updateTransport' : ActorMethod<
+    [bigint, string, string, string, bigint, string],
+    undefined
+  >,
   'updateVillageInfo' : ActorMethod<
     [string, string, string, string, string, string],
     undefined

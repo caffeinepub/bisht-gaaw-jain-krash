@@ -46,57 +46,6 @@ type NewsItem = {
   tag: string;
 };
 
-const SERVICES = [
-  {
-    name: "प्राथमिक स्वास्थ्य केंद्र",
-    phone: "01234-567890",
-    timing: "सुबह 8 - दोपहर 2",
-    icon: "🏥",
-  },
-  {
-    name: "सरकारी प्राथमिक विद्यालय",
-    phone: "01234-567891",
-    timing: "सुबह 7 - दोपहर 1",
-    icon: "🏫",
-  },
-  {
-    name: "उचित मूल्य की दुकान",
-    phone: "01234-567892",
-    timing: "सुबह 9 - शाम 5",
-    icon: "🏪",
-  },
-  {
-    name: "ग्राम पंचायत कार्यालय",
-    phone: "9917892601",
-    timing: "सुबह 10 - शाम 4",
-    icon: "🏛️",
-  },
-  {
-    name: "स्टेट बैंक ऑफ इंडिया",
-    phone: "01234-567894",
-    timing: "सुबह 10 - दोपहर 2",
-    icon: "🏦",
-  },
-  {
-    name: "डाकघर",
-    phone: "01234-567895",
-    timing: "सुबह 9 - शाम 5",
-    icon: "📮",
-  },
-  {
-    name: "कृषि सेवा केंद्र",
-    phone: "01234-567896",
-    timing: "सुबह 9 - शाम 6",
-    icon: "🌾",
-  },
-  {
-    name: "पशु चिकित्सालय",
-    phone: "01234-567897",
-    timing: "सुबह 8 - दोपहर 1",
-    icon: "🐄",
-  },
-];
-
 const PHOTOS = [
   { id: 1, title: "गाँव का मंदिर", emoji: "🛕", color: "#e8d5b7" },
   { id: 2, title: "हरे-भरे खेत", emoji: "🌾", color: "#c8e6c9" },
@@ -107,29 +56,6 @@ const PHOTOS = [
   { id: 7, title: "बैल-गाड़ी परेड", emoji: "🐂", color: "#fce4ec" },
   { id: 8, title: "ग्राम सभा", emoji: "👨‍👩‍👧‍👦", color: "#e1bee7" },
   { id: 9, title: "सूर्योदय", emoji: "🌅", color: "#fff9c4" },
-];
-
-const EMERGENCY = [
-  { name: "पुलिस", number: "100", icon: "👮", color: "#1565c0", isFixed: true },
-  { name: "एम्बुलेंस", number: "108", icon: "🚑", color: "#c62828", isFixed: true },
-  {
-    name: "अग्निशमन",
-    number: "101",
-    icon: "🚒",
-    color: "#e65100",
-    isFixed: true,
-  },
-  { name: "सरपंच", number: "98765-43210", icon: "👳", color: "#2D5016" },
-  {
-    name: "प्राथमिक स्वास्थ्य केंद्र",
-    number: "01234-567890",
-    icon: "🏥",
-    color: "#00695c",
-  },
-  { name: "बिजली विभाग", number: "1912", icon: "⚡", color: "#f57f17" },
-  { name: "ग्राम प्रधान", number: "98765-12345", icon: "🧑‍💼", color: "#4a148c" },
-  { name: "जल निगम", number: "1800-180-5555", icon: "💧", color: "#01579b" },
-  { name: "ग्राम पंचायत", number: "9917892601", icon: "🏛️", color: "#2D5016" },
 ];
 
 const TAG_COLORS: Record<string, string> = {
@@ -378,18 +304,80 @@ function HomePage({
   isVillageLoading?: boolean;
   newsList: NewsItem[];
 }) {
-  const [quickServices, setQuickServices] = useState(INITIAL_QUICK_SERVICES);
+  const { actor, isFetching: qsIsFetching } = useActor();
   const [qsEditIdx, setQsEditIdx] = useState<number | null>(null);
   const [qsEditLabel, setQsEditLabel] = useState("");
   const [qsEditIcon, setQsEditIcon] = useState("");
   const [qsAddOpen, setQsAddOpen] = useState(false);
   const [qsNewLabel, setQsNewLabel] = useState("");
   const [qsNewIcon, setQsNewIcon] = useState("");
-  const [qsNextId, setQsNextId] = useState(7);
   const [qsViewIdx, setQsViewIdx] = useState<number | null>(null);
   const [qsEditDetail, setQsEditDetail] = useState("");
   const [qsNewDetail, setQsNewDetail] = useState("");
   const [qsViewEditMode, setQsViewEditMode] = useState(false);
+  const [qsSaving, setQsSaving] = useState(false);
+
+  const DEFAULT_QS_SEED = [
+    {
+      icon: "📋",
+      name: "राशन कार्ड",
+      detail: "राशन कार्ड के लिए ग्राम पंचायत कार्यालय में आवेदन करें।",
+    },
+    {
+      icon: "📜",
+      name: "जन्म प्रमाण",
+      detail: "जन्म प्रमाण पत्र के लिए नगर पालिका या ग्राम पंचायत से संपर्क करें।",
+    },
+    {
+      icon: "💼",
+      name: "आय प्रमाण",
+      detail: "आय प्रमाण पत्र के लिए तहसील कार्यालय जाएँ।",
+    },
+    {
+      icon: "⛏️",
+      name: "नरेगा",
+      detail: "मनरेगा जॉब कार्ड के लिए ग्राम पंचायत में पंजीकरण करवाएँ।",
+    },
+    {
+      icon: "👴",
+      name: "पेंशन",
+      detail: "वृद्धावस्था पेंशन के लिए तहसील कार्यालय में आवेदन करें।",
+    },
+    {
+      icon: "🌳",
+      name: "वृक्षारोपण",
+      detail: "ग्राम में वृक्षारोपण कार्यक्रम के लिए ग्राम पंचायत से संपर्क करें।",
+    },
+  ];
+
+  const { data: quickServices = [], refetch: refetchQs } = useQuery<any[]>({
+    queryKey: ["quickServices"],
+    queryFn: async () => {
+      if (!actor) return INITIAL_QUICK_SERVICES;
+      const items = await (actor as any).getQuickServices();
+      if ((items as any[]).length === 0) {
+        await Promise.all(
+          DEFAULT_QS_SEED.map((s) =>
+            (actor as any).addQuickService(s.icon, s.name, s.detail),
+          ),
+        );
+        const seeded = await (actor as any).getQuickServices();
+        return (seeded as any[]).map((s: any) => ({
+          id: s.id,
+          label: s.name,
+          icon: s.icon,
+          detail: s.detail,
+        }));
+      }
+      return (items as any[]).map((s: any) => ({
+        id: s.id,
+        label: s.name,
+        icon: s.icon,
+        detail: s.detail,
+      }));
+    },
+    enabled: !!actor && !qsIsFetching,
+  });
 
   return (
     <div className="flex flex-col items-center gap-6 pb-4">
@@ -547,9 +535,16 @@ function HomePage({
                 data-ocid={`quick_services.delete_button.${idx + 1}`}
                 className="absolute top-1 left-1 text-xs px-1 rounded"
                 style={{ color: "#c62828", background: "transparent" }}
-                onClick={() =>
-                  setQuickServices(quickServices.filter((_, i) => i !== idx))
-                }
+                onClick={async () => {
+                  if (!actor) return;
+                  try {
+                    await (actor as any).deleteQuickService(svc.id);
+                    refetchQs();
+                    toast.success("सेवा हटा दी गई!");
+                  } catch (_) {
+                    toast.error("सेवा नहीं हटाई जा सकी।");
+                  }
+                }}
                 title="हटाएँ"
               >
                 ✕
@@ -655,18 +650,26 @@ function HomePage({
                 <div className="flex gap-2">
                   <Button
                     data-ocid="quick_services.view.save_button"
-                    disabled={!qsEditLabel.trim()}
-                    onClick={() => {
-                      if (qsViewIdx === null) return;
-                      const updated = [...quickServices];
-                      updated[qsViewIdx] = {
-                        ...updated[qsViewIdx],
-                        label: qsEditLabel.trim(),
-                        icon: qsEditIcon.trim() || updated[qsViewIdx].icon,
-                        detail: qsEditDetail.trim(),
-                      };
-                      setQuickServices(updated);
-                      setQsViewEditMode(false);
+                    disabled={!qsEditLabel.trim() || qsSaving}
+                    onClick={async () => {
+                      if (qsViewIdx === null || !actor) return;
+                      const svc = quickServices[qsViewIdx];
+                      try {
+                        setQsSaving(true);
+                        await (actor as any).updateQuickService(
+                          svc.id,
+                          qsEditIcon.trim() || svc.icon,
+                          qsEditLabel.trim(),
+                          qsEditDetail.trim(),
+                        );
+                        refetchQs();
+                        setQsViewEditMode(false);
+                        toast.success("✅ सेवा अपडेट हो गई!");
+                      } catch (_) {
+                        toast.error("अपडेट नहीं हो सका।");
+                      } finally {
+                        setQsSaving(false);
+                      }
                     }}
                     style={{ background: "#2D5016", flex: 1 }}
                   >
@@ -718,18 +721,26 @@ function HomePage({
               </div>
               <Button
                 data-ocid="quick_services.save_button"
-                disabled={!qsEditLabel.trim()}
-                onClick={() => {
-                  if (qsEditIdx === null) return;
-                  const updated = [...quickServices];
-                  updated[qsEditIdx] = {
-                    ...updated[qsEditIdx],
-                    label: qsEditLabel.trim(),
-                    icon: qsEditIcon.trim() || updated[qsEditIdx].icon,
-                    detail: qsEditDetail.trim(),
-                  };
-                  setQuickServices(updated);
-                  setQsEditIdx(null);
+                disabled={!qsEditLabel.trim() || qsSaving}
+                onClick={async () => {
+                  if (qsEditIdx === null || !actor) return;
+                  const svc = quickServices[qsEditIdx];
+                  try {
+                    setQsSaving(true);
+                    await (actor as any).updateQuickService(
+                      svc.id,
+                      qsEditIcon.trim() || svc.icon,
+                      qsEditLabel.trim(),
+                      qsEditDetail.trim(),
+                    );
+                    refetchQs();
+                    setQsEditIdx(null);
+                    toast.success("✅ सेवा अपडेट हो गई!");
+                  } catch (_) {
+                    toast.error("अपडेट नहीं हो सका।");
+                  } finally {
+                    setQsSaving(false);
+                  }
                 }}
                 style={{ background: "#2D5016" }}
               >
@@ -778,20 +789,27 @@ function HomePage({
               </div>
               <Button
                 data-ocid="quick_services.add.submit_button"
-                disabled={!qsNewLabel.trim()}
-                onClick={() => {
-                  setQuickServices([
-                    ...quickServices,
-                    {
-                      id: qsNextId,
-                      label: qsNewLabel.trim(),
-                      icon: qsNewIcon.trim() || "📌",
-                      detail: qsNewDetail.trim(),
-                    },
-                  ]);
-                  setQsNextId(qsNextId + 1);
-                  setQsNewDetail("");
-                  setQsAddOpen(false);
+                disabled={!qsNewLabel.trim() || qsSaving}
+                onClick={async () => {
+                  if (!actor) return;
+                  try {
+                    setQsSaving(true);
+                    await (actor as any).addQuickService(
+                      qsNewIcon.trim() || "📌",
+                      qsNewLabel.trim(),
+                      qsNewDetail.trim(),
+                    );
+                    refetchQs();
+                    setQsNewLabel("");
+                    setQsNewIcon("");
+                    setQsNewDetail("");
+                    setQsAddOpen(false);
+                    toast.success("✅ नई सेवा जोड़ी गई!");
+                  } catch (_) {
+                    toast.error("सेवा नहीं जोड़ी जा सकी।");
+                  } finally {
+                    setQsSaving(false);
+                  }
                 }}
                 style={{ background: "#2D5016" }}
               >
@@ -895,18 +913,64 @@ function HomePage({
 
 function NewsPage({
   newsList,
-  setNewsList,
+  refetchNews,
 }: {
   newsList: NewsItem[];
-  setNewsList: React.Dispatch<React.SetStateAction<NewsItem[]>>;
+  refetchNews: () => void;
 }) {
+  const { actor } = useActor();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tag, setTag] = useState("");
+  // Edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState<NewsItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editTag, setEditTag] = useState("");
 
-  function handleAdd() {
-    if (!title.trim() || !body.trim()) return;
+  function handleOpenEdit(item: NewsItem) {
+    setEditItem(item);
+    setEditTitle(item.title);
+    setEditBody(item.body);
+    setEditTag(item.tag);
+    setEditOpen(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!editItem || !editTitle.trim() || !editBody.trim() || !actor) return;
+    try {
+      await (actor as any).updateNews(
+        BigInt(editItem.id),
+        editTitle.trim(),
+        editBody.trim(),
+        editTag.trim() || "सामान्य",
+        editItem.date,
+      );
+      refetchNews();
+      setEditOpen(false);
+      setEditItem(null);
+      toast.success("✏️ खबर अपडेट हो गई!");
+    } catch (_) {
+      toast.error("खबर अपडेट नहीं हो सकी। Page refresh करें।");
+    } finally {
+    }
+  }
+
+  async function handleDeleteNews(id: number) {
+    if (!actor) return;
+    try {
+      await (actor as any).deleteNews(BigInt(id));
+      refetchNews();
+      toast.success("🗑️ खबर हटा दी गई!");
+    } catch (_) {
+      toast.error("खबर नहीं हटाई जा सकी।");
+    }
+  }
+
+  async function handleAdd() {
+    if (!title.trim() || !body.trim() || !actor) return;
     const today = new Date();
     const months = [
       "जनवरी",
@@ -923,23 +987,23 @@ function NewsPage({
       "दिसंबर",
     ];
     const dateStr = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
-    setNewsList((prev) => [
-      {
-        id: Date.now(),
-        title: title.trim(),
-        body: body.trim(),
-        tag: tag.trim() || "सामान्य",
-        date: dateStr,
-      },
-      ...prev,
-    ]);
-    setTitle("");
-    setBody("");
-    setTag("");
-    setOpen(false);
-    const prevNews = Number(localStorage.getItem("bisht_news_count") ?? 0);
-    localStorage.setItem("bisht_news_count", String(prevNews + 1));
-    toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
+    try {
+      await (actor as any).addNews(
+        title.trim(),
+        body.trim(),
+        tag.trim() || "सामान्य",
+        dateStr,
+      );
+      refetchNews();
+      setTitle("");
+      setBody("");
+      setTag("");
+      setOpen(false);
+      toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
+    } catch (_) {
+      toast.error("खबर नहीं जोड़ी जा सकी। Page refresh करें।");
+    } finally {
+    }
   }
 
   return (
@@ -1032,6 +1096,87 @@ function NewsPage({
         </DialogContent>
       </Dialog>
 
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              खबर संपादित करें ✏️
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-1">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                शीर्षक *
+              </Label>
+              <Input
+                data-ocid="news.edit.title.input"
+                placeholder="खबर का शीर्षक"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                विवरण *
+              </Label>
+              <Textarea
+                data-ocid="news.edit.body.textarea"
+                placeholder="खबर का विवरण"
+                rows={4}
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                टैग
+              </Label>
+              <Input
+                data-ocid="news.edit.tag.input"
+                placeholder="उत्सव, पंचायत, विकास..."
+                value={editTag}
+                onChange={(e) => setEditTag(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                data-ocid="news.edit.save_button"
+                onClick={handleSaveEdit}
+                disabled={!editTitle.trim() || !editBody.trim()}
+                className="flex-1 font-semibold"
+                style={{ background: "#2D5016", color: "white" }}
+              >
+                सेव करें ✓
+              </Button>
+              <Button
+                data-ocid="news.edit.cancel_button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                className="flex-1"
+                style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+              >
+                रद्द करें
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {newsList.map((item, idx) => (
         <Card
           key={item.id}
@@ -1050,9 +1195,29 @@ function NewsPage({
               >
                 {item.tag}
               </Badge>
-              <span className="text-xs" style={{ color: "#8a9a70" }}>
-                {item.date}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs" style={{ color: "#8a9a70" }}>
+                  {item.date}
+                </span>
+                <button
+                  type="button"
+                  data-ocid={`news.edit_button.${idx + 1}`}
+                  onClick={() => handleOpenEdit(item)}
+                  className="text-green-600 hover:text-green-800 px-1 text-sm"
+                  title="संपादित करें"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  data-ocid={`news.delete_button.${idx + 1}`}
+                  onClick={() => handleDeleteNews(item.id)}
+                  className="text-red-400 hover:text-red-600 px-1 text-sm"
+                  title="हटाएं"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
             <CardTitle className="text-sm mt-2" style={{ color: "#2D5016" }}>
               {item.title}
@@ -1147,6 +1312,55 @@ function MarketPage() {
     },
   });
 
+  const [editProdOpen, setEditProdOpen] = useState(false);
+  const [editProdItem, setEditProdItem] = useState<GraminProduct | null>(null);
+  const [editProdForm, setEditProdForm] = useState({
+    productName: "",
+    farmerName: "",
+    quantity: "",
+    price: "",
+    phone: "",
+  });
+
+  function handleOpenEditProd(p: GraminProduct) {
+    const match = p.productName.match(/^(.+?)\s*\((.+)\)$/);
+    setEditProdForm({
+      productName: match ? match[1].trim() : p.productName,
+      farmerName: match ? match[2].trim() : "",
+      quantity: p.quantity,
+      price: p.pricePerKg,
+      phone: p.contactNumber,
+    });
+    setEditProdItem(p);
+    setEditProdOpen(true);
+  }
+
+  const updateProductMutation = useMutation({
+    mutationFn: async () => {
+      if (!actor || !editProdItem) throw new Error("कनेक्शन नहीं है");
+      const fullName = editProdForm.farmerName.trim()
+        ? `${editProdForm.productName.trim()} (${editProdForm.farmerName.trim()})`
+        : editProdForm.productName.trim();
+      return (actor as any).updateProduct(
+        editProdItem.id,
+        fullName,
+        editProdForm.quantity.trim(),
+        editProdForm.price.trim(),
+        "",
+        editProdForm.phone.trim(),
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setEditProdOpen(false);
+      setEditProdItem(null);
+      toast.success("✏️ उत्पाद की जानकारी अपडेट हो गई!");
+    },
+    onError: () => {
+      toast.error("अपडेट नहीं हो सका, पुनः प्रयास करें");
+    },
+  });
+
   function handleAddProduct() {
     if (!prodForm.productName.trim() || !prodForm.price.trim()) return;
     addProductMutation.mutate();
@@ -1214,6 +1428,53 @@ function MarketPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transports"] });
+    },
+  });
+
+  const [editTransOpen, setEditTransOpen] = useState(false);
+  const [editTransItem, setEditTransItem] = useState<TransportEntry | null>(
+    null,
+  );
+  const [editTransForm, setEditTransForm] = useState({
+    vehicleType: "",
+    departureTime: "",
+    destination: "",
+    availableSeats: "",
+    phone: "",
+  });
+
+  function handleOpenEditTrans(t: TransportEntry) {
+    setEditTransForm({
+      vehicleType: t.vehicleType,
+      departureTime: t.departureTime,
+      destination: t.destination,
+      availableSeats: t.availableSeats.toString(),
+      phone: t.contactNumber,
+    });
+    setEditTransItem(t);
+    setEditTransOpen(true);
+  }
+
+  const updateTransportMutation = useMutation({
+    mutationFn: async () => {
+      if (!actor || !editTransItem) throw new Error("कनेक्शन नहीं है");
+      return (actor as any).updateTransport(
+        editTransItem.id,
+        editTransForm.vehicleType.trim(),
+        editTransForm.departureTime.trim(),
+        editTransForm.destination.trim(),
+        BigInt(editTransForm.availableSeats || "0"),
+        editTransForm.phone.trim(),
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transports"] });
+      setEditTransOpen(false);
+      setEditTransItem(null);
+      toast.success("✏️ यातायात जानकारी अपडेट हो गई!");
+    },
+    onError: () => {
+      toast.error("अपडेट नहीं हो सका, पुनः प्रयास करें");
     },
   });
 
@@ -1422,6 +1683,141 @@ function MarketPage() {
             </DialogContent>
           </Dialog>
 
+          {/* Edit Product Dialog */}
+          <Dialog open={editProdOpen} onOpenChange={setEditProdOpen}>
+            <DialogContent className="mx-4 rounded-2xl">
+              <DialogHeader>
+                <DialogTitle
+                  style={{
+                    color: "#2D5016",
+                    fontFamily: "'Tiro Devanagari Hindi', serif",
+                  }}
+                >
+                  उत्पाद संपादित करें ✏️
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-3 pt-1">
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    उत्पाद का नाम *
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_product_name.input"
+                    placeholder="गेहूँ, मक्का, सब्जी..."
+                    value={editProdForm.productName}
+                    onChange={(e) =>
+                      setEditProdForm((f) => ({
+                        ...f,
+                        productName: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    किसान का नाम
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_farmer_name.input"
+                    placeholder="किसान का नाम"
+                    value={editProdForm.farmerName}
+                    onChange={(e) =>
+                      setEditProdForm((f) => ({
+                        ...f,
+                        farmerName: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    मात्रा
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_quantity.input"
+                    placeholder="जैसे: 50 किलो"
+                    value={editProdForm.quantity}
+                    onChange={(e) =>
+                      setEditProdForm((f) => ({
+                        ...f,
+                        quantity: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    कीमत *
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_price.input"
+                    placeholder="प्रति किलो / क्विंटल"
+                    value={editProdForm.price}
+                    onChange={(e) =>
+                      setEditProdForm((f) => ({ ...f, price: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    संपर्क नंबर
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_product_phone.input"
+                    type="tel"
+                    placeholder="मोबाइल नंबर"
+                    value={editProdForm.phone}
+                    onChange={(e) =>
+                      setEditProdForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    data-ocid="market.edit_product_save.button"
+                    onClick={() => updateProductMutation.mutate()}
+                    disabled={
+                      !editProdForm.productName.trim() ||
+                      !editProdForm.price.trim() ||
+                      updateProductMutation.isPending
+                    }
+                    className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
+                    style={{ background: "#2D5016" }}
+                  >
+                    {updateProductMutation.isPending
+                      ? "अपडेट हो रहा है..."
+                      : "सेव करें ✓"}
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid="market.edit_product_cancel.button"
+                    onClick={() => setEditProdOpen(false)}
+                    className="flex-1 font-semibold py-2 rounded-xl text-sm border"
+                    style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+                  >
+                    रद्द करें
+                  </button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {productsLoading ? (
             <div
               data-ocid="market.products.loading_state"
@@ -1495,14 +1891,25 @@ function MarketPage() {
                           </a>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        data-ocid={`market.product.delete_button.${idx + 1}`}
-                        onClick={() => deleteProductMutation.mutate(p.id)}
-                        className="text-red-400 hover:text-red-600 ml-2 text-lg leading-none"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex flex-col items-center gap-1 ml-2">
+                        <button
+                          type="button"
+                          data-ocid={`market.product.edit_button.${idx + 1}`}
+                          onClick={() => handleOpenEditProd(p)}
+                          className="text-green-600 hover:text-green-800 text-base leading-none"
+                          title="संपादित करें"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          data-ocid={`market.product.delete_button.${idx + 1}`}
+                          onClick={() => deleteProductMutation.mutate(p.id)}
+                          className="text-red-400 hover:text-red-600 text-lg leading-none"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1712,6 +2119,146 @@ function MarketPage() {
             </DialogContent>
           </Dialog>
 
+          {/* Edit Transport Dialog */}
+          <Dialog open={editTransOpen} onOpenChange={setEditTransOpen}>
+            <DialogContent className="mx-4 rounded-2xl">
+              <DialogHeader>
+                <DialogTitle
+                  style={{
+                    color: "#2D5016",
+                    fontFamily: "'Tiro Devanagari Hindi', serif",
+                  }}
+                >
+                  यातायात जानकारी संपादित करें ✏️
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-3 pt-1">
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    गाड़ी का प्रकार *
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_vehicle_type.input"
+                    placeholder="जीप, टैक्सी, पिकअप"
+                    value={editTransForm.vehicleType}
+                    onChange={(e) =>
+                      setEditTransForm((f) => ({
+                        ...f,
+                        vehicleType: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    निकलने का समय
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_departure_time.input"
+                    placeholder="सुबह 7:00 बजे"
+                    value={editTransForm.departureTime}
+                    onChange={(e) =>
+                      setEditTransForm((f) => ({
+                        ...f,
+                        departureTime: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    गंतव्य स्थान *
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_destination.input"
+                    placeholder="हल्द्वानी, नैनीताल"
+                    value={editTransForm.destination}
+                    onChange={(e) =>
+                      setEditTransForm((f) => ({
+                        ...f,
+                        destination: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    खाली सीटें
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_available_seats.input"
+                    type="number"
+                    min="0"
+                    placeholder="4"
+                    value={editTransForm.availableSeats}
+                    onChange={(e) =>
+                      setEditTransForm((f) => ({
+                        ...f,
+                        availableSeats: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="text-xs mb-1 block"
+                    style={{ color: "#2D5016" }}
+                  >
+                    संपर्क नंबर
+                  </Label>
+                  <Input
+                    data-ocid="market.edit_transport_phone.input"
+                    type="tel"
+                    placeholder="9876543210"
+                    value={editTransForm.phone}
+                    onChange={(e) =>
+                      setEditTransForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    data-ocid="market.edit_transport_save.button"
+                    onClick={() => updateTransportMutation.mutate()}
+                    disabled={
+                      !editTransForm.vehicleType.trim() ||
+                      !editTransForm.destination.trim() ||
+                      updateTransportMutation.isPending
+                    }
+                    className="flex-1 text-white font-semibold py-2 rounded-xl text-sm disabled:opacity-50"
+                    style={{ background: "#2D5016" }}
+                  >
+                    {updateTransportMutation.isPending
+                      ? "अपडेट हो रहा है..."
+                      : "सेव करें ✓"}
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid="market.edit_transport_cancel.button"
+                    onClick={() => setEditTransOpen(false)}
+                    className="flex-1 font-semibold py-2 rounded-xl text-sm border"
+                    style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+                  >
+                    रद्द करें
+                  </button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {transportsLoading ? (
             <div
               data-ocid="market.transport.loading_state"
@@ -1791,14 +2338,25 @@ function MarketPage() {
                           </a>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        data-ocid={`market.transport.delete_button.${idx + 1}`}
-                        onClick={() => deleteTransportMutation.mutate(t.id)}
-                        className="text-red-400 hover:text-red-600 ml-2 text-lg leading-none"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex flex-col items-center gap-1 ml-2">
+                        <button
+                          type="button"
+                          data-ocid={`market.transport.edit_button.${idx + 1}`}
+                          onClick={() => handleOpenEditTrans(t)}
+                          className="text-green-600 hover:text-green-800 text-base leading-none"
+                          title="संपादित करें"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          data-ocid={`market.transport.delete_button.${idx + 1}`}
+                          onClick={() => deleteTransportMutation.mutate(t.id)}
+                          className="text-red-400 hover:text-red-600 text-lg leading-none"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1812,72 +2370,138 @@ function MarketPage() {
 }
 
 function ServicesPage() {
-  const [services, setServices] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bisht_services");
-      return saved ? JSON.parse(saved) : SERVICES;
-    } catch {
-      return SERVICES;
-    }
+  const { actor, isFetching } = useActor();
+  // Icon/color maps for emergency contacts
+  const FIXED_EMERGENCY_PHONES = ["100", "101", "108", "1091"];
+  const EMERGENCY_ICON_MAP: Record<string, { icon: string; color: string }> = {
+    पुलिस: { icon: "👮", color: "#1565c0" },
+    अग्निशमन: { icon: "🚒", color: "#e65100" },
+    एम्बुलेंस: { icon: "🚑", color: "#c62828" },
+    "महिला हेल्पलाइन": { icon: "👩", color: "#ad1457" },
+  };
+  const DEFAULT_EMERGENCY_ICON = { icon: "📞", color: "#2D5016" };
+  const SERVICE_ICON_MAP: Record<string, string> = {
+    "प्राथमिक स्वास्थ्य केंद्र": "🏥",
+    "सरकारी प्राथमिक विद्यालय": "🏫",
+    "उचित मूल्य की दुकान": "🏪",
+    "ग्राम पंचायत कार्यालय": "🏛️",
+    "स्टेट बैंक ऑफ इंडिया": "🏦",
+    डाकघर: "📮",
+    "कृषि सेवा केंद्र": "🌾",
+    "पशु चिकित्सालय": "🐄",
+    "ग्राम पंचायत": "🏛️",
+    "नजदीकी बैंक": "🏦",
+    "नजदीकी अस्पताल": "🏥",
+    "प्राथमिक विद्यालय": "🏫",
+  };
+
+  const DEFAULT_SERVICES_SEED = [
+    {
+      name: "ग्राम पंचायत",
+      phone: "01234-56789",
+      timing: "10:00-17:00",
+      contactType: "service",
+    },
+    {
+      name: "नजदीकी बैंक",
+      phone: "01234-56790",
+      timing: "10:00-14:00",
+      contactType: "service",
+    },
+    {
+      name: "नजदीकी अस्पताल",
+      phone: "01234-56791",
+      timing: "24 घंटे",
+      contactType: "service",
+    },
+    {
+      name: "प्राथमिक विद्यालय",
+      phone: "01234-56792",
+      timing: "8:00-14:00",
+      contactType: "service",
+    },
+  ];
+  const DEFAULT_EMERGENCY_SEED = [
+    { name: "पुलिस", phone: "100", timing: "24 घंटे", contactType: "emergency" },
+    {
+      name: "अग्निशमन",
+      phone: "101",
+      timing: "24 घंटे",
+      contactType: "emergency",
+    },
+    { name: "एम्बुलेंस", phone: "108", timing: "24 घंटे", contactType: "emergency" },
+    {
+      name: "महिला हेल्पलाइन",
+      phone: "1091",
+      timing: "24 घंटे",
+      contactType: "emergency",
+    },
+  ];
+
+  const { data: allContacts = [], refetch: refetchContacts } = useQuery<any[]>({
+    queryKey: ["serviceContacts"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const items = await (actor as any).getServiceContacts();
+      if ((items as any[]).length === 0) {
+        // Seed defaults
+        await Promise.all(
+          [...DEFAULT_EMERGENCY_SEED, ...DEFAULT_SERVICES_SEED].map((s) =>
+            (actor as any).addServiceContact(
+              s.name,
+              s.phone,
+              s.timing,
+              s.contactType,
+            ),
+          ),
+        );
+        const seeded = await (actor as any).getServiceContacts();
+        return seeded;
+      }
+      return items;
+    },
+    enabled: !!actor && !isFetching,
   });
-  const [contacts, setContacts] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bisht_emergency");
-      return saved ? JSON.parse(saved) : EMERGENCY;
-    } catch {
-      return EMERGENCY;
-    }
-  });
-  const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [editSection, setEditSection] = useState<"services" | "emergency">(
-    "services",
+
+  const services = allContacts.filter((c: any) => c.contactType === "service");
+  const contacts = allContacts.filter(
+    (c: any) => c.contactType === "emergency",
   );
+
+  const [editId, setEditId] = useState<bigint | null>(null);
+  const [editContactType, setEditContactType] = useState<string>("service");
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editTiming, setEditTiming] = useState("");
-  const [editNumber, setEditNumber] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem("bisht_services", JSON.stringify(services));
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem("bisht_emergency", JSON.stringify(contacts));
-  }, [contacts]);
-
-  function openEditService(idx: number) {
-    setEditSection("services");
-    setEditIdx(idx);
-    setEditName(services[idx].name);
-    setEditPhone(services[idx].phone);
-    setEditTiming(services[idx].timing);
+  function openEditService(c: any) {
+    setEditId(c.id);
+    setEditContactType(c.contactType);
+    setEditName(c.name);
+    setEditPhone(c.phone);
+    setEditTiming(c.timing || "");
   }
 
-  function openEditContact(idx: number) {
-    setEditSection("emergency");
-    setEditIdx(idx);
-    setEditName(contacts[idx].name);
-    setEditNumber(contacts[idx].number);
-  }
-
-  function saveEdit() {
-    if (editIdx === null) return;
-    if (editSection === "services") {
-      setServices((prev) =>
-        prev.map((s, i) =>
-          i === editIdx
-            ? { ...s, name: editName, phone: editPhone, timing: editTiming }
-            : s,
-        ),
+  async function saveEdit() {
+    if (editId === null || !actor) return;
+    try {
+      setIsSaving(true);
+      await (actor as any).updateServiceContact(
+        editId,
+        editName,
+        editPhone,
+        editTiming,
+        editContactType,
       );
-    } else {
-      setContacts((prev) =>
-        prev.map((c, i) =>
-          i === editIdx ? { ...c, name: editName, number: editNumber } : c,
-        ),
-      );
+      refetchContacts();
+      setEditId(null);
+      toast.success("✅ जानकारी सहेज ली गई!");
+    } catch (_) {
+      toast.error("सहेजा नहीं जा सका। Page refresh करें।");
+    } finally {
+      setIsSaving(false);
     }
-    setEditIdx(null);
   }
 
   return (
@@ -1901,63 +2525,69 @@ function ServicesPage() {
       >
         आपातकालीन संपर्क
       </h2>
-      {contacts.map((contact, idx) => (
-        <div
-          key={contact.name}
-          className="relative"
-          data-ocid={`emergency.item.${idx + 1}`}
-        >
-          <a href={`tel:${contact.number}`} className="block">
-            <Card className="card-hover" style={{ borderColor: "#c8ddb2" }}>
-              <CardContent className="p-3 flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
-                  style={{ background: `${contact.color}20` }}
-                >
-                  {contact.icon}
-                </div>
-                <div className="flex-1">
-                  <p
-                    className="font-semibold text-sm"
-                    style={{ color: "#2D5016" }}
-                  >
-                    {contact.name}
-                  </p>
-                  <p
-                    className="text-base font-bold"
-                    style={{ color: contact.color }}
-                  >
-                    {contact.number}
-                  </p>
-                </div>
-                <span
-                  className="text-xs px-2 py-1 rounded-full"
-                  style={{
-                    background: `${contact.color}20`,
-                    color: contact.color,
-                  }}
-                >
-                  कॉल करें
-                </span>
-              </CardContent>
-            </Card>
-          </a>
-          {!contact.isFixed && (
-            <button
-              type="button"
-              data-ocid={`emergency.edit_button.${idx + 1}`}
-              onClick={(e) => {
-                e.preventDefault();
-                openEditContact(idx);
-              }}
-              className="absolute top-2 right-2 text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded z-10"
-              title="संपादित करें"
-            >
-              ✏️
-            </button>
-          )}
+      {contacts.length === 0 && isFetching && (
+        <div className="text-center py-4 text-sm" style={{ color: "#8a9a70" }}>
+          लोड हो रहा है...
         </div>
-      ))}
+      )}
+      {contacts.map((contact: any, idx: number) => {
+        const meta = EMERGENCY_ICON_MAP[contact.name] ?? DEFAULT_EMERGENCY_ICON;
+        const isFixed = FIXED_EMERGENCY_PHONES.includes(contact.phone);
+        return (
+          <div
+            key={String(contact.id)}
+            className="relative"
+            data-ocid={`emergency.item.${idx + 1}`}
+          >
+            <a href={`tel:${contact.phone}`} className="block">
+              <Card className="card-hover" style={{ borderColor: "#c8ddb2" }}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
+                    style={{ background: `${meta.color}20` }}
+                  >
+                    {meta.icon}
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className="font-semibold text-sm"
+                      style={{ color: "#2D5016" }}
+                    >
+                      {contact.name}
+                    </p>
+                    <p
+                      className="text-base font-bold"
+                      style={{ color: meta.color }}
+                    >
+                      {contact.phone}
+                    </p>
+                  </div>
+                  <span
+                    className="text-xs px-2 py-1 rounded-full"
+                    style={{ background: `${meta.color}20`, color: meta.color }}
+                  >
+                    कॉल करें
+                  </span>
+                </CardContent>
+              </Card>
+            </a>
+            {!isFixed && (
+              <button
+                type="button"
+                data-ocid={`emergency.edit_button.${idx + 1}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  openEditService(contact);
+                }}
+                className="absolute top-2 right-2 text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded z-10"
+                title="संपादित करें"
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        );
+      })}
 
       {/* Services Section */}
       <h2
@@ -1969,9 +2599,14 @@ function ServicesPage() {
       >
         सरकारी सेवाएँ
       </h2>
-      {services.map((svc, idx) => (
+      {services.length === 0 && isFetching && (
+        <div className="text-center py-4 text-sm" style={{ color: "#8a9a70" }}>
+          लोड हो रहा है...
+        </div>
+      )}
+      {services.map((svc: any, idx: number) => (
         <Card
-          key={svc.name}
+          key={String(svc.id)}
           data-ocid={`services.item.${idx + 1}`}
           className="card-hover"
           style={{ borderColor: "#c8ddb2" }}
@@ -1981,7 +2616,7 @@ function ServicesPage() {
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xl"
               style={{ background: "rgba(45,80,22,0.1)" }}
             >
-              {svc.icon}
+              {SERVICE_ICON_MAP[svc.name] ?? "🏛️"}
             </div>
             <div className="flex-1 min-w-0">
               <p
@@ -2000,7 +2635,7 @@ function ServicesPage() {
             <button
               type="button"
               data-ocid={`services.edit_button.${idx + 1}`}
-              onClick={() => openEditService(idx)}
+              onClick={() => openEditService(svc)}
               className="text-sm opacity-60 hover:opacity-100 transition-opacity p-1 rounded"
               title="संपादित करें"
             >
@@ -2011,8 +2646,8 @@ function ServicesPage() {
       ))}
 
       <Dialog
-        open={editIdx !== null}
-        onOpenChange={(o) => !o && setEditIdx(null)}
+        open={editId !== null}
+        onOpenChange={(o) => !o && setEditId(null)}
       >
         <DialogContent
           data-ocid="services.edit.dialog"
@@ -2025,7 +2660,9 @@ function ServicesPage() {
                 fontFamily: "'Tiro Devanagari Hindi', serif",
               }}
             >
-              {editSection === "emergency" ? "संपर्क संपादित करें" : "सेवा संपादित करें"}
+              {editContactType === "emergency"
+                ? "संपर्क संपादित करें"
+                : "सेवा संपादित करें"}
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-2">
@@ -2041,61 +2678,47 @@ function ServicesPage() {
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
-            {editSection === "emergency" ? (
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#2D5016" }}
+              >
+                {editContactType === "emergency" ? "नंबर" : "फोन"}
+              </Label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </div>
+            {editContactType === "service" && (
               <div>
                 <Label
                   className="text-xs mb-1 block"
                   style={{ color: "#2D5016" }}
                 >
-                  नंबर
+                  समय
                 </Label>
                 <Input
-                  value={editNumber}
-                  onChange={(e) => setEditNumber(e.target.value)}
+                  value={editTiming}
+                  onChange={(e) => setEditTiming(e.target.value)}
                 />
               </div>
-            ) : (
-              <>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    फोन
-                  </Label>
-                  <Input
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label
-                    className="text-xs mb-1 block"
-                    style={{ color: "#2D5016" }}
-                  >
-                    समय
-                  </Label>
-                  <Input
-                    value={editTiming}
-                    onChange={(e) => setEditTiming(e.target.value)}
-                  />
-                </div>
-              </>
             )}
             <div className="flex gap-2 justify-end pt-1">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setEditIdx(null)}
+                onClick={() => setEditId(null)}
               >
                 रद्द करें
               </Button>
               <Button
                 size="sm"
                 onClick={saveEdit}
+                disabled={isSaving}
                 style={{ background: "#2D5016" }}
               >
-                सहेजें
+                {isSaving ? "सहेज रहे हैं..." : "सहेजें"}
               </Button>
             </div>
           </div>
@@ -2104,7 +2727,6 @@ function ServicesPage() {
     </div>
   );
 }
-
 type PhotoItem = (typeof PHOTOS)[number];
 type SelectedPhoto =
   | { kind: "static"; photo: PhotoItem }
@@ -2146,6 +2768,35 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [longPressId, setLongPressId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+
+  const makeLongPressHandlers = (id: string) => ({
+    onTouchStart: () => {
+      didLongPress.current = false;
+      longPressTimer.current = setTimeout(() => {
+        didLongPress.current = true;
+        setLongPressId(id);
+      }, 500);
+    },
+    onTouchEnd: () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    },
+    onTouchMove: () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    },
+    onMouseDown: () => {
+      didLongPress.current = false;
+      longPressTimer.current = setTimeout(() => {
+        didLongPress.current = true;
+        setLongPressId(id);
+      }, 500);
+    },
+    onMouseUp: () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    },
+  });
   const [activeGalleryTab, setActiveGalleryTab] = useState<"photos" | "videos">(
     "photos",
   );
@@ -2418,11 +3069,18 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
           <div className="grid grid-cols-3 gap-2">
             {/* Uploaded Photos with actual thumbnails */}
             {uploadedPhotos.map((photo, idx) => (
-              <div key={String(photo.id)} className="relative">
+              <div
+                key={String(photo.id)}
+                className="relative"
+                {...makeLongPressHandlers(String(photo.id))}
+              >
                 <button
                   type="button"
                   data-ocid={`photos.item.${idx + 1}`}
-                  onClick={() => setSelected({ kind: "uploaded", photo })}
+                  onClick={() => {
+                    if (!didLongPress.current)
+                      setSelected({ kind: "uploaded", photo });
+                  }}
                   className="rounded-xl overflow-hidden cursor-pointer w-full relative"
                   style={{
                     aspectRatio: "1",
@@ -2470,6 +3128,36 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
                   >
                     🗑
                   </button>
+                )}
+                {longPressId === String(photo.id) && (
+                  <div
+                    className="absolute inset-0 z-20 flex items-center justify-center rounded-xl"
+                    style={{ background: "rgba(0,0,0,0.65)" }}
+                    onClick={() => setLongPressId(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setLongPressId(null);
+                    }}
+                    aria-hidden="true"
+                  >
+                    <button
+                      type="button"
+                      data-ocid={`photos.delete_button.${idx + 1}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isAdmin) {
+                          deletePhotoMutation.mutate(photo.id);
+                          setLongPressId(null);
+                        } else {
+                          toast.error("केवल admin हटा सकते हैं");
+                          setLongPressId(null);
+                        }
+                      }}
+                      className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-white font-bold text-sm"
+                      style={{ background: "rgba(198,40,40,0.9)" }}
+                    >
+                      🗑 हटाएं
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -2525,11 +3213,18 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {uploadedVideos.map((video, idx) => (
-                <div key={String(video.id)} className="relative">
+                <div
+                  key={String(video.id)}
+                  className="relative"
+                  {...makeLongPressHandlers(`v-${String(video.id)}`)}
+                >
                   <button
                     type="button"
                     data-ocid={`videos.item.${idx + 1}`}
-                    onClick={() => setSelected({ kind: "video", photo: video })}
+                    onClick={() => {
+                      if (!didLongPress.current)
+                        setSelected({ kind: "video", photo: video });
+                    }}
                     className="rounded-xl overflow-hidden cursor-pointer w-full relative"
                     style={{
                       aspectRatio: "16/9",
@@ -2586,6 +3281,36 @@ function PhotosPage({ isAdmin }: { isAdmin?: boolean }) {
                     >
                       🗑
                     </button>
+                  )}
+                  {longPressId === `v-${String(video.id)}` && (
+                    <div
+                      className="absolute inset-0 z-20 flex items-center justify-center rounded-xl"
+                      style={{ background: "rgba(0,0,0,0.65)" }}
+                      onClick={() => setLongPressId(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setLongPressId(null);
+                      }}
+                      aria-hidden="true"
+                    >
+                      <button
+                        type="button"
+                        data-ocid={`videos.delete_button.${idx + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isAdmin) {
+                            deleteVideoMutation.mutate(video.id);
+                            setLongPressId(null);
+                          } else {
+                            toast.error("केवल admin हटा सकते हैं");
+                            setLongPressId(null);
+                          }
+                        }}
+                        className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-white font-bold text-sm"
+                        style={{ background: "rgba(198,40,40,0.9)" }}
+                      >
+                        🗑 हटाएं
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -3106,6 +3831,62 @@ function PeoplePage() {
     },
   });
 
+  const [editPersonOpen, setEditPersonOpen] = useState(false);
+  const [editPersonItem, setEditPersonItem] = useState<Person | null>(null);
+  const [editPersonForm, setEditPersonForm] = useState({
+    name: "",
+    profession: "",
+    phone: "",
+    description: "",
+  });
+
+  function handleOpenEditPerson(person: Person) {
+    setEditPersonForm({
+      name: person.name,
+      profession: person.profession,
+      phone: person.phoneNumber ?? "",
+      description: person.description ?? "",
+    });
+    setEditPersonItem(person);
+    setEditPersonOpen(true);
+  }
+
+  const updatePersonMutation = useMutation({
+    mutationFn: async () => {
+      if (!actor || !editPersonItem) throw new Error("Actor not ready");
+      await (actor as any).updatePerson(
+        editPersonItem.name,
+        editPersonForm.name.trim(),
+        editPersonForm.profession.trim(),
+        editPersonForm.phone.trim() || null,
+        editPersonForm.description.trim() || null,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["persons"] });
+      setEditPersonOpen(false);
+      setEditPersonItem(null);
+      toast.success("✏️ जानकारी अपडेट हो गई!");
+    },
+    onError: () => {
+      toast.error("अपडेट नहीं हो सका, पुनः प्रयास करें");
+    },
+  });
+
+  const deletePersonMutation = useMutation({
+    mutationFn: async (personName: string) => {
+      if (!actor) throw new Error("Actor not ready");
+      await (actor as any).deletePerson(personName);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["persons"] });
+      toast.success("🗑️ जानकारी हटा दी गई!");
+    },
+    onError: () => {
+      toast.error("हटाने में त्रुटि हुई");
+    },
+  });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !profession.trim()) return;
@@ -3216,6 +3997,120 @@ function PeoplePage() {
         </form>
       </div>
 
+      {/* Edit Person Dialog */}
+      <Dialog open={editPersonOpen} onOpenChange={setEditPersonOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle
+              style={{
+                color: "#2D5016",
+                fontFamily: "'Tiro Devanagari Hindi', serif",
+              }}
+            >
+              जानकारी संपादित करें ✏️
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-1">
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                नाम *
+              </Label>
+              <Input
+                data-ocid="people.edit.name.input"
+                placeholder="पूरा नाम"
+                value={editPersonForm.name}
+                onChange={(e) =>
+                  setEditPersonForm((f) => ({ ...f, name: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                पेशा / काम *
+              </Label>
+              <Input
+                data-ocid="people.edit.profession.input"
+                placeholder="किसान, दुकानदार, शिक्षक..."
+                value={editPersonForm.profession}
+                onChange={(e) =>
+                  setEditPersonForm((f) => ({
+                    ...f,
+                    profession: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                फोन नंबर
+              </Label>
+              <Input
+                data-ocid="people.edit.phone.input"
+                type="tel"
+                placeholder="मोबाइल नंबर"
+                value={editPersonForm.phone}
+                onChange={(e) =>
+                  setEditPersonForm((f) => ({ ...f, phone: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label
+                className="text-xs mb-1 block"
+                style={{ color: "#4a5a30" }}
+              >
+                परिचय
+              </Label>
+              <Textarea
+                data-ocid="people.edit.description.textarea"
+                placeholder="अपने बारे में..."
+                rows={3}
+                value={editPersonForm.description}
+                onChange={(e) =>
+                  setEditPersonForm((f) => ({
+                    ...f,
+                    description: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                data-ocid="people.edit.save_button"
+                onClick={() => updatePersonMutation.mutate()}
+                disabled={
+                  !editPersonForm.name.trim() ||
+                  !editPersonForm.profession.trim() ||
+                  updatePersonMutation.isPending
+                }
+                className="flex-1 font-semibold"
+                style={{ background: "#2D5016", color: "white" }}
+              >
+                {updatePersonMutation.isPending ? "सेव हो रहा है..." : "सेव करें ✓"}
+              </Button>
+              <Button
+                data-ocid="people.edit.cancel_button"
+                variant="outline"
+                onClick={() => setEditPersonOpen(false)}
+                className="flex-1"
+                style={{ borderColor: "#c8ddb2", color: "#2D5016" }}
+              >
+                रद्द करें
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* People List */}
       <div>
         <h3
@@ -3305,6 +4200,26 @@ function PeoplePage() {
                         {person.description}
                       </p>
                     )}
+                  </div>
+                  <div className="flex flex-col items-center gap-1 ml-1">
+                    <button
+                      type="button"
+                      data-ocid={`people.edit_button.${idx + 1}`}
+                      onClick={() => handleOpenEditPerson(person)}
+                      className="text-green-600 hover:text-green-800 text-base leading-none"
+                      title="संपादित करें"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid={`people.delete_button.${idx + 1}`}
+                      onClick={() => deletePersonMutation.mutate(person.name)}
+                      className="text-red-400 hover:text-red-600 text-base leading-none"
+                      title="हटाएं"
+                    >
+                      🗑️
+                    </button>
                   </div>
                 </CardContent>
               </Card>
@@ -3517,7 +4432,7 @@ function Footer({
   const [pwError, setPwError] = useState(false);
   const [photoError, setPhotoError] = useState(false);
   const [photoSrc, setPhotoSrc] = useState(
-    "/assets/uploads/WhatsApp-Image-2024-10-24-at-11.38.25-2-1.jpeg",
+    "/assets/uploads/WhatsApp-Image-2024-11-07-at-18.20.22-1.jpeg",
   );
 
   function handleAdminLogin() {
@@ -3554,7 +4469,7 @@ function Footer({
             onError={() => {
               if (photoSrc.includes("-1-1.jpeg")) {
                 setPhotoSrc(
-                  "/assets/uploads/WhatsApp-Image-2024-10-24-at-11.38.25-2-1.jpeg",
+                  "/assets/uploads/WhatsApp-Image-2024-11-07-at-18.20.22-1.jpeg",
                 );
               } else {
                 setPhotoError(true);
@@ -3677,7 +4592,23 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(
     () => localStorage.getItem("bisht_admin") === "true",
   );
-  const [newsList, setNewsList] = useState<NewsItem[]>(INITIAL_NEWS);
+  const { data: newsList = INITIAL_NEWS, refetch: refetchNews } = useQuery<
+    NewsItem[]
+  >({
+    queryKey: ["news"],
+    queryFn: async () => {
+      if (!actor) return INITIAL_NEWS;
+      const items = await (actor as any).getNews();
+      return (items as any[]).map((n: any) => ({
+        id: Number(n.id),
+        title: n.title,
+        body: n.body,
+        date: n.date,
+        tag: n.tag,
+      }));
+    },
+    enabled: !!actor && !isFetching,
+  });
 
   // Inject animation CSS
   useEffect(() => {
@@ -3766,15 +4697,19 @@ export default function App() {
           localStorage.setItem("bisht_persons_count", String(peCount));
         }
 
-        // News notifications (localStorage-based cross-tab sync)
-        const newsCount = Number(localStorage.getItem("bisht_news_count") ?? 0);
-        const prevNews = Number(
-          localStorage.getItem("bisht_news_count_prev") ?? newsCount,
-        );
-        if (newsCount > prevNews) {
-          toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
-        }
-        localStorage.setItem("bisht_news_count_prev", String(newsCount));
+        // News notifications (backend-based)
+        try {
+          const newsItems = await (actor as any).getNews();
+          const newsCount = (newsItems as any[]).length;
+          const prevNews = Number(
+            localStorage.getItem("bisht_news_count_prev") ?? newsCount,
+          );
+          if (newsCount > prevNews) {
+            toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
+            refetchNews();
+          }
+          localStorage.setItem("bisht_news_count_prev", String(newsCount));
+        } catch (_) {}
 
         // Product notifications
         const prodCount = Number(
@@ -3803,7 +4738,7 @@ export default function App() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [actor, isFetching]);
+  }, [actor, isFetching, refetchNews]);
 
   const {
     data: villageInfo,
@@ -3894,7 +4829,7 @@ export default function App() {
           />
         )}
         {activeTab === "news" && (
-          <NewsPage newsList={newsList} setNewsList={setNewsList} />
+          <NewsPage newsList={newsList} refetchNews={refetchNews} />
         )}
         {activeTab === "market" && <MarketPage />}
         {activeTab === "services" && <ServicesPage />}

@@ -492,40 +492,7 @@ export class StorageClient {
       console.log("Certificate:", respone.certificate);
       return respone.certificate;
     }
-    // Handle v2 response body: reply.arg contains the certificate bytes
-    if (respone && typeof respone === "object") {
-      const body = respone as unknown as Record<string, unknown>;
-      // v2: { status: "replied", reply: { arg: Uint8Array } }
-      if (body.reply && typeof body.reply === "object") {
-        const reply = body.reply as Record<string, unknown>;
-        if (reply.arg instanceof Uint8Array || ArrayBuffer.isView(reply.arg)) {
-          try {
-            const decoded = IDL.decode(
-              [IDL.Vec(IDL.Nat8)],
-              reply.arg as Uint8Array,
-            );
-            if (decoded.length > 0 && decoded[0] instanceof Uint8Array) {
-              return decoded[0];
-            }
-          } catch (_) {
-            // fallthrough
-          }
-        }
-      }
-      // Some nodes return certificate directly on body
-      if (
-        body.certificate instanceof Uint8Array ||
-        ArrayBuffer.isView(body.certificate)
-      ) {
-        return body.certificate as Uint8Array;
-      }
-    }
-    // readState fallback skipped
-    console.warn(
-      "getCertificate: could not extract certificate from response, proceeding without verification",
-    );
-    // Return empty certificate to allow upload to continue without IC certificate verification
-    return new Uint8Array(0);
+    throw new Error("Expected v3 response body");
   }
 
   public async putFile(

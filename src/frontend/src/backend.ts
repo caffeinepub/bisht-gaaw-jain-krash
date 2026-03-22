@@ -89,10 +89,6 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface _CaffeineStorageRefillResult {
-    success?: boolean;
-    topped_up_amount?: bigint;
-}
 export interface GraminProduct {
     id: bigint;
     pricePerKg: string;
@@ -111,15 +107,44 @@ export interface GalleryPhoto {
 export interface _CaffeineStorageRefillInformation {
     proposed_top_up_amount?: bigint;
 }
+export interface _CaffeineStorageCreateCertificateResult {
+    method: string;
+    blob_hash: string;
+}
+export interface ServiceContact {
+    id: bigint;
+    contactType: string;
+    timing: string;
+    name: string;
+    phone: string;
+}
+export interface NewsItem {
+    id: bigint;
+    tag: string;
+    title: string;
+    body: string;
+    date: string;
+}
+export interface TransportEntry {
+    id: bigint;
+    vehicleType: string;
+    destination: string;
+    departureTime: string;
+    addedAt: bigint;
+    availableSeats: bigint;
+    contactNumber: string;
+}
+export interface QuickService {
+    id: bigint;
+    icon: string;
+    name: string;
+    detail: string;
+}
 export interface GalleryVideo {
     id: bigint;
     title: string;
     blob: ExternalBlob;
     uploadedAt: bigint;
-}
-export interface _CaffeineStorageCreateCertificateResult {
-    method: string;
-    blob_hash: string;
 }
 export interface VillageInfo {
     literacy: string;
@@ -135,17 +160,12 @@ export interface Person {
     description?: string;
     phoneNumber?: string;
 }
+export interface _CaffeineStorageRefillResult {
+    success?: boolean;
+    topped_up_amount?: bigint;
+}
 export interface UserProfile {
     name: string;
-}
-export interface TransportEntry {
-    id: bigint;
-    vehicleType: string;
-    destination: string;
-    departureTime: string;
-    addedAt: bigint;
-    availableSeats: bigint;
-    contactNumber: string;
 }
 export enum UserRole {
     admin = "admin",
@@ -160,25 +180,35 @@ export interface backendInterface {
     _caffeineStorageRefillCashier(refillInformation: _CaffeineStorageRefillInformation | null): Promise<_CaffeineStorageRefillResult>;
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
+    addNews(title: string, body: string, tag: string, date: string): Promise<bigint>;
     addPerson(name: string, profession: string, phoneNumber: string | null, description: string | null): Promise<void>;
     addPhoto(title: string, blob: ExternalBlob): Promise<bigint>;
     addProduct(productName: string, quantity: string, pricePerKg: string, pricePerQtl: string, contactNumber: string): Promise<bigint>;
+    addQuickService(icon: string, name: string, detail: string): Promise<bigint>;
+    addServiceContact(name: string, phone: string, timing: string, contactType: string): Promise<bigint>;
     addTransport(vehicleType: string, departureTime: string, destination: string, availableSeats: bigint, contactNumber: string): Promise<bigint>;
     addVideo(title: string, blob: ExternalBlob): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     claimAdminRole(password: string): Promise<boolean>;
+    deleteNews(id: bigint): Promise<void>;
+    deletePerson(name: string): Promise<void>;
     deletePhoto(photoId: bigint): Promise<void>;
     deleteProduct(id: bigint): Promise<void>;
+    deleteQuickService(id: bigint): Promise<void>;
+    deleteServiceContact(id: bigint): Promise<void>;
     deleteTransport(id: bigint): Promise<void>;
     deleteVideo(videoId: bigint): Promise<void>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
+    getNews(): Promise<Array<NewsItem>>;
     getPerson(name: string): Promise<Person | null>;
     getPersons(): Promise<Array<Person>>;
     getPhoto(photoId: bigint): Promise<GalleryPhoto | null>;
     getPhotos(): Promise<Array<GalleryPhoto>>;
     getProduct(id: bigint): Promise<GraminProduct | null>;
     getProducts(): Promise<Array<GraminProduct>>;
+    getQuickServices(): Promise<Array<QuickService>>;
+    getServiceContacts(): Promise<Array<ServiceContact>>;
     getTransport(id: bigint): Promise<TransportEntry | null>;
     getTransports(): Promise<Array<TransportEntry>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -189,6 +219,12 @@ export interface backendInterface {
     populateDemoProducts(): Promise<void>;
     populateDemoTransports(): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    updateNews(id: bigint, title: string, body: string, tag: string, date: string): Promise<void>;
+    updatePerson(oldName: string, newName: string, profession: string, phoneNumber: string | null, description: string | null): Promise<void>;
+    updateProduct(id: bigint, productName: string, quantity: string, pricePerKg: string, pricePerQtl: string, contactNumber: string): Promise<void>;
+    updateQuickService(id: bigint, icon: string, name: string, detail: string): Promise<void>;
+    updateServiceContact(id: bigint, name: string, phone: string, timing: string, contactType: string): Promise<void>;
+    updateTransport(id: bigint, vehicleType: string, departureTime: string, destination: string, availableSeats: bigint, contactNumber: string): Promise<void>;
     updateVillageInfo(name: string, slogan: string, population: string, houses: string, area: string, literacy: string): Promise<void>;
 }
 import type { ExternalBlob as _ExternalBlob, GalleryPhoto as _GalleryPhoto, GalleryVideo as _GalleryVideo, GraminProduct as _GraminProduct, Person as _Person, TransportEntry as _TransportEntry, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
@@ -292,6 +328,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addNews(arg0: string, arg1: string, arg2: string, arg3: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addNews(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addNews(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
     async addPerson(arg0: string, arg1: string, arg2: string | null, arg3: string | null): Promise<void> {
         if (this.processError) {
             try {
@@ -331,6 +381,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async addQuickService(arg0: string, arg1: string, arg2: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addQuickService(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addQuickService(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async addServiceContact(arg0: string, arg1: string, arg2: string, arg3: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addServiceContact(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addServiceContact(arg0, arg1, arg2, arg3);
             return result;
         }
     }
@@ -390,6 +468,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteNews(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteNews(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteNews(arg0);
+            return result;
+        }
+    }
+    async deletePerson(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePerson(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePerson(arg0);
+            return result;
+        }
+    }
     async deletePhoto(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -415,6 +521,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteProduct(arg0);
+            return result;
+        }
+    }
+    async deleteQuickService(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteQuickService(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteQuickService(arg0);
+            return result;
+        }
+    }
+    async deleteServiceContact(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteServiceContact(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteServiceContact(arg0);
             return result;
         }
     }
@@ -472,6 +606,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getCallerUserRole();
             return from_candid_UserRole_n13(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getNews(): Promise<Array<NewsItem>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getNews();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getNews();
+            return result;
         }
     }
     async getPerson(arg0: string): Promise<Person | null> {
@@ -555,6 +703,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getProducts();
+            return result;
+        }
+    }
+    async getQuickServices(): Promise<Array<QuickService>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getQuickServices();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getQuickServices();
+            return result;
+        }
+    }
+    async getServiceContacts(): Promise<Array<ServiceContact>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getServiceContacts();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getServiceContacts();
             return result;
         }
     }
@@ -695,6 +871,90 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
+        }
+    }
+    async updateNews(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateNews(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateNews(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async updatePerson(arg0: string, arg1: string, arg2: string, arg3: string | null, arg4: string | null): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updatePerson(arg0, arg1, arg2, to_candid_opt_n8(this._uploadFile, this._downloadFile, arg3), to_candid_opt_n8(this._uploadFile, this._downloadFile, arg4));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updatePerson(arg0, arg1, arg2, to_candid_opt_n8(this._uploadFile, this._downloadFile, arg3), to_candid_opt_n8(this._uploadFile, this._downloadFile, arg4));
+            return result;
+        }
+    }
+    async updateProduct(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async updateQuickService(arg0: bigint, arg1: string, arg2: string, arg3: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateQuickService(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateQuickService(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async updateServiceContact(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateServiceContact(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateServiceContact(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async updateTransport(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: bigint, arg5: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateTransport(arg0, arg1, arg2, arg3, arg4, arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateTransport(arg0, arg1, arg2, arg3, arg4, arg5);
             return result;
         }
     }

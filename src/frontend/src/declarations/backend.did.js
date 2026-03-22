@@ -26,6 +26,13 @@ export const UserRole = IDL.Variant({
   'guest' : IDL.Null,
 });
 export const UserProfile = IDL.Record({ 'name' : IDL.Text });
+export const NewsItem = IDL.Record({
+  'id' : IDL.Nat,
+  'tag' : IDL.Text,
+  'title' : IDL.Text,
+  'body' : IDL.Text,
+  'date' : IDL.Text,
+});
 export const Person = IDL.Record({
   'name' : IDL.Text,
   'profession' : IDL.Text,
@@ -46,6 +53,19 @@ export const GraminProduct = IDL.Record({
   'addedAt' : IDL.Int,
   'quantity' : IDL.Text,
   'contactNumber' : IDL.Text,
+});
+export const QuickService = IDL.Record({
+  'id' : IDL.Nat,
+  'icon' : IDL.Text,
+  'name' : IDL.Text,
+  'detail' : IDL.Text,
+});
+export const ServiceContact = IDL.Record({
+  'id' : IDL.Nat,
+  'contactType' : IDL.Text,
+  'timing' : IDL.Text,
+  'name' : IDL.Text,
+  'phone' : IDL.Text,
 });
 export const TransportEntry = IDL.Record({
   'id' : IDL.Nat,
@@ -99,6 +119,7 @@ export const idlService = IDL.Service({
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addNews' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
   'addPerson' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
       [],
@@ -110,6 +131,12 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'addQuickService' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+  'addServiceContact' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'addTransport' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
       [IDL.Nat],
@@ -118,18 +145,25 @@ export const idlService = IDL.Service({
   'addVideo' : IDL.Func([IDL.Text, ExternalBlob], [IDL.Int], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'claimAdminRole' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'deleteNews' : IDL.Func([IDL.Nat], [], []),
+  'deletePerson' : IDL.Func([IDL.Text], [], []),
   'deletePhoto' : IDL.Func([IDL.Nat], [], []),
   'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+  'deleteQuickService' : IDL.Func([IDL.Nat], [], []),
+  'deleteServiceContact' : IDL.Func([IDL.Nat], [], []),
   'deleteTransport' : IDL.Func([IDL.Nat], [], []),
   'deleteVideo' : IDL.Func([IDL.Int], [], []),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getNews' : IDL.Func([], [IDL.Vec(NewsItem)], ['query']),
   'getPerson' : IDL.Func([IDL.Text], [IDL.Opt(Person)], ['query']),
   'getPersons' : IDL.Func([], [IDL.Vec(Person)], ['query']),
   'getPhoto' : IDL.Func([IDL.Nat], [IDL.Opt(GalleryPhoto)], ['query']),
   'getPhotos' : IDL.Func([], [IDL.Vec(GalleryPhoto)], ['query']),
   'getProduct' : IDL.Func([IDL.Nat], [IDL.Opt(GraminProduct)], ['query']),
   'getProducts' : IDL.Func([], [IDL.Vec(GraminProduct)], ['query']),
+  'getQuickServices' : IDL.Func([], [IDL.Vec(QuickService)], ['query']),
+  'getServiceContacts' : IDL.Func([], [IDL.Vec(ServiceContact)], ['query']),
   'getTransport' : IDL.Func([IDL.Nat], [IDL.Opt(TransportEntry)], ['query']),
   'getTransports' : IDL.Func([], [IDL.Vec(TransportEntry)], ['query']),
   'getUserProfile' : IDL.Func(
@@ -144,6 +178,36 @@ export const idlService = IDL.Service({
   'populateDemoProducts' : IDL.Func([], [], []),
   'populateDemoTransports' : IDL.Func([], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'updateNews' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updatePerson' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
+      [],
+      [],
+    ),
+  'updateProduct' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updateQuickService' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updateServiceContact' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updateTransport' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+      [],
+      [],
+    ),
   'updateVillageInfo' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [],
@@ -172,6 +236,13 @@ export const idlFactory = ({ IDL }) => {
     'guest' : IDL.Null,
   });
   const UserProfile = IDL.Record({ 'name' : IDL.Text });
+  const NewsItem = IDL.Record({
+    'id' : IDL.Nat,
+    'tag' : IDL.Text,
+    'title' : IDL.Text,
+    'body' : IDL.Text,
+    'date' : IDL.Text,
+  });
   const Person = IDL.Record({
     'name' : IDL.Text,
     'profession' : IDL.Text,
@@ -192,6 +263,19 @@ export const idlFactory = ({ IDL }) => {
     'addedAt' : IDL.Int,
     'quantity' : IDL.Text,
     'contactNumber' : IDL.Text,
+  });
+  const QuickService = IDL.Record({
+    'id' : IDL.Nat,
+    'icon' : IDL.Text,
+    'name' : IDL.Text,
+    'detail' : IDL.Text,
+  });
+  const ServiceContact = IDL.Record({
+    'id' : IDL.Nat,
+    'contactType' : IDL.Text,
+    'timing' : IDL.Text,
+    'name' : IDL.Text,
+    'phone' : IDL.Text,
   });
   const TransportEntry = IDL.Record({
     'id' : IDL.Nat,
@@ -245,6 +329,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addNews' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'addPerson' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
         [],
@@ -256,6 +345,12 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'addQuickService' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+    'addServiceContact' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'addTransport' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
         [IDL.Nat],
@@ -264,18 +359,25 @@ export const idlFactory = ({ IDL }) => {
     'addVideo' : IDL.Func([IDL.Text, ExternalBlob], [IDL.Int], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'claimAdminRole' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'deleteNews' : IDL.Func([IDL.Nat], [], []),
+    'deletePerson' : IDL.Func([IDL.Text], [], []),
     'deletePhoto' : IDL.Func([IDL.Nat], [], []),
     'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+    'deleteQuickService' : IDL.Func([IDL.Nat], [], []),
+    'deleteServiceContact' : IDL.Func([IDL.Nat], [], []),
     'deleteTransport' : IDL.Func([IDL.Nat], [], []),
     'deleteVideo' : IDL.Func([IDL.Int], [], []),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getNews' : IDL.Func([], [IDL.Vec(NewsItem)], ['query']),
     'getPerson' : IDL.Func([IDL.Text], [IDL.Opt(Person)], ['query']),
     'getPersons' : IDL.Func([], [IDL.Vec(Person)], ['query']),
     'getPhoto' : IDL.Func([IDL.Nat], [IDL.Opt(GalleryPhoto)], ['query']),
     'getPhotos' : IDL.Func([], [IDL.Vec(GalleryPhoto)], ['query']),
     'getProduct' : IDL.Func([IDL.Nat], [IDL.Opt(GraminProduct)], ['query']),
     'getProducts' : IDL.Func([], [IDL.Vec(GraminProduct)], ['query']),
+    'getQuickServices' : IDL.Func([], [IDL.Vec(QuickService)], ['query']),
+    'getServiceContacts' : IDL.Func([], [IDL.Vec(ServiceContact)], ['query']),
     'getTransport' : IDL.Func([IDL.Nat], [IDL.Opt(TransportEntry)], ['query']),
     'getTransports' : IDL.Func([], [IDL.Vec(TransportEntry)], ['query']),
     'getUserProfile' : IDL.Func(
@@ -290,6 +392,36 @@ export const idlFactory = ({ IDL }) => {
     'populateDemoProducts' : IDL.Func([], [], []),
     'populateDemoTransports' : IDL.Func([], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'updateNews' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updatePerson' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
+        [],
+        [],
+      ),
+    'updateProduct' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updateQuickService' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updateServiceContact' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updateTransport' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+        [],
+        [],
+      ),
     'updateVillageInfo' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [],
