@@ -420,6 +420,9 @@ actor {
   };
 
   public shared ({ caller }) func addNews(title : Text, body : Text, tag : Text, date : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can add news");
+    };
     let newsId = nextNewsId;
     let news : NewsItem = { id = newsId; title; body; tag; date };
     newsItems.add(newsId, news);
@@ -428,6 +431,9 @@ actor {
   };
 
   public shared ({ caller }) func updateNews(id : Nat, title : Text, body : Text, tag : Text, date : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can update news");
+    };
     let updatedNews : NewsItem = { id; title; body; tag; date };
     newsItems.add(id, updatedNews);
   };
@@ -444,6 +450,9 @@ actor {
   };
 
   public shared ({ caller }) func addServiceContact(name : Text, phone : Text, timing : Text, contactType : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can add service contacts");
+    };
     let id = nextServiceContactId;
     let contact : ServiceContact = { id; name; phone; timing; contactType };
     serviceContacts.add(id, contact);
@@ -452,6 +461,9 @@ actor {
   };
 
   public shared ({ caller }) func updateServiceContact(id : Nat, name : Text, phone : Text, timing : Text, contactType : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can update service contacts");
+    };
     let updatedContact : ServiceContact = { id; name; phone; timing; contactType };
     serviceContacts.add(id, updatedContact);
   };
@@ -468,6 +480,9 @@ actor {
   };
 
   public shared ({ caller }) func addQuickService(icon : Text, name : Text, detail : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can add quick services");
+    };
     let id = nextQuickServiceId;
     let quickService : QuickService = { id; icon; name; detail };
     quickServices.add(id, quickService);
@@ -476,6 +491,9 @@ actor {
   };
 
   public shared ({ caller }) func updateQuickService(id : Nat, icon : Text, name : Text, detail : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can update quick services");
+    };
     let updatedQuickService : QuickService = { id; icon; name; detail };
     quickServices.add(id, updatedQuickService);
   };
