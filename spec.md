@@ -1,27 +1,37 @@
 # Bisht Gaaw Jain Krash
 
 ## Current State
-App has backend persistence for: persons, products, transport, photos, videos, village info.
-News, Services, Emergency Contacts, and Quick Services are stored in frontend localStorage — these are lost on page refresh/rebuild.
+
+App has a Motoko backend with Map-based storage for products, transport, news, people, services, quickServices. Maps are declared with `let Map.empty` which is NOT stable storage — data resets on canister upgrades/rebuilds. Frontend already has SheetDB integration for backup/sync but still primarily reads from backend.
+
+User wants data entry (products, transport, news, people) to persist reliably WITHOUT depending on backend canister state.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend types and CRUD for NewsItem (id, title, body, tag, date)
-- Backend types and CRUD for ServiceContact (id, name, phone, timing, type: 'service'|'emergency')
-- Backend types and CRUD for QuickService (id, icon, label, detail)
+- SheetDB as primary data store for: उत्पाद (products), ग्रामीन यातायात (transport), खबरें (news), लोग (people)
+- On page load, data is fetched directly from SheetDB (no backend needed for read)
+- On add/edit/delete, data is saved directly to SheetDB (primary), backend call is optional/secondary
+- localStorage fallback for offline/fast load
 
 ### Modify
-- Frontend: Replace localStorage for news with backend addNews/updateNews/deleteNews/getNews calls
-- Frontend: Replace localStorage for services/emergency with backend addServiceContact/updateServiceContact/deleteServiceContact/getServiceContacts
-- Frontend: Replace in-memory quickServices state with backend addQuickService/updateQuickService/deleteQuickService/getQuickServices
+- `useQuery` for products, transport, news, people: read from SheetDB first, not backend
+- `addProductMutation`, `addTransportMutation`, `addNews`, `addPerson`: save to SheetDB first (await), then try backend (fire-and-forget)
+- Delete/edit mutations: update SheetDB first, then backend
+- Services and quickServices: keep localStorage + backend as before (already working)
 
 ### Remove
-- All localStorage.setItem/getItem calls for bisht_services, bisht_emergency, bisht_news_count
+- Dependency on backend actor for products/transport/news/people reads
+- Blocking on actor availability before showing/saving data
 
 ## Implementation Plan
-1. Add News, ServiceContact, QuickService types to Motoko backend
-2. Add CRUD functions for each new type (open to all callers, no auth check for add/update)
-3. Regenerate backend.d.ts bindings
-4. Update frontend to load all data from backend on mount
-5. Update all add/edit/delete handlers to call backend and refresh data
+
+1. Update SheetDB helper to support update by row id and get all without type filter
+2. In App.tsx:
+   - Products: `getProducts` query → read from SheetDB; add/edit/delete → SheetDB primary
+   - Transport: same pattern
+   - News: same pattern  
+   - People: same pattern
+3. Each item gets a stable `id` (timestamp string) stored in SheetDB
+4. Data displays immediately from SheetDB on page load, no actor wait needed
+5. Backend calls remain as secondary (fire-and-forget) for any that are already working

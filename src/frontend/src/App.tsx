@@ -945,37 +945,39 @@ function NewsPage({
   }
 
   async function handleSaveEdit() {
-    if (!editItem || !editTitle.trim() || !editBody.trim() || !actor) return;
+    if (!editItem || !editTitle.trim() || !editBody.trim()) return;
     try {
-      await (actor as any).updateNews(
-        BigInt(editItem.id),
-        editTitle.trim(),
-        editBody.trim(),
-        editTag.trim() || "सामान्य",
-        editItem.date,
-      );
-      if (editItem) {
-        sheetdbUpdateById("news", String(editItem.id), {
-          title: editTitle.trim(),
-          body: editBody.trim(),
-          tag: editTag.trim() || "सामान्य",
-        }).catch(() => {});
+      await sheetdbUpdateById("news", String(editItem.id), {
+        title: editTitle.trim(),
+        body: editBody.trim(),
+        tag: editTag.trim() || "सामान्य",
+      });
+      if (actor) {
+        (actor as any)
+          .updateNews(
+            BigInt(editItem.id),
+            editTitle.trim(),
+            editBody.trim(),
+            editTag.trim() || "सामान्य",
+            editItem.date,
+          )
+          .catch(() => {});
       }
       refetchNews();
       setEditOpen(false);
       setEditItem(null);
       toast.success("✏️ खबर अपडेट हो गई!");
     } catch (_) {
-      toast.error("खबर अपडेट नहीं हो सकी। Page refresh करें।");
-    } finally {
+      toast.error("खबर अपडेट नहीं हो सकी। पुनः प्रयास करें।");
     }
   }
 
   async function handleDeleteNews(id: number) {
-    if (!actor) return;
     try {
-      await (actor as any).deleteNews(BigInt(id));
-      sheetdbDeleteById("news", String(id)).catch(() => {});
+      await sheetdbDeleteById("news", String(id));
+      if (actor) {
+        (actor as any).deleteNews(BigInt(id)).catch(() => {});
+      }
       refetchNews();
       toast.success("🗑️ खबर हटा दी गई!");
     } catch (_) {
@@ -984,7 +986,7 @@ function NewsPage({
   }
 
   async function handleAdd() {
-    if (!title.trim() || !body.trim() || !actor) return;
+    if (!title.trim() || !body.trim()) return;
     const today = new Date();
     const months = [
       "जनवरी",
@@ -1002,20 +1004,20 @@ function NewsPage({
     ];
     const dateStr = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
     try {
-      await (actor as any).addNews(
-        title.trim(),
-        body.trim(),
-        tag.trim() || "सामान्य",
-        dateStr,
-      );
-      sheetdbAdd({
+      const pid = String(Date.now());
+      await sheetdbAdd({
         type: "news",
-        id: String(Date.now()),
+        id: pid,
         title: title.trim(),
         body: body.trim(),
         tag: tag.trim() || "सामान्य",
         date: dateStr,
-      }).catch(() => {});
+      });
+      if (actor) {
+        (actor as any)
+          .addNews(title.trim(), body.trim(), tag.trim() || "सामान्य", dateStr)
+          .catch(() => {});
+      }
       refetchNews();
       setTitle("");
       setBody("");
@@ -1023,8 +1025,7 @@ function NewsPage({
       setOpen(false);
       toast.success("📰 नई खबर जोड़ी गई!", { duration: 5000 });
     } catch (_) {
-      toast.error("खबर नहीं जोड़ी जा सकी। Page refresh करें।");
-    } finally {
+      toast.error("खबर नहीं जोड़ी जा सकी। पुनः प्रयास करें।");
     }
   }
 
@@ -1257,7 +1258,7 @@ function NewsPage({
 }
 
 function MarketPage() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   const queryClient = useQueryClient();
   const [activeSubTab, setActiveSubTab] = useState<"products" | "transport">(
     "products",
@@ -1269,23 +1270,26 @@ function MarketPage() {
   >({
     queryKey: ["products"],
     queryFn: async () => {
-      if (!actor) return [];
-      const prods = await actor.getProducts();
-      if (prods.length === 0) {
-        const rows = await sheetdbGetAll("product").catch(() => []);
+      const rows = await sheetdbGetAll("product").catch(() => []);
+      if (rows.length > 0) {
         return rows.map((r: any) => ({
-          id: BigInt(r.id ?? 0),
-          productName: r.product ?? r.naam ?? "",
+          id: BigInt(r.id ?? Date.now()),
+          productName: r.product
+            ? r.name
+              ? `${r.product} (${r.name})`
+              : r.product
+            : "",
           quantity: r.matra ?? "",
-          pricePerKg: r.rate ?? r.kimat ?? "",
+          pricePerKg: r.rate ?? "",
           pricePerQtl: "",
           contactNumber: r.mobile ?? r.contact ?? "",
           addedAt: BigInt(0),
         })) as GraminProduct[];
       }
-      return prods;
+      if (!actor) return [];
+      return actor.getProducts().catch(() => []);
     },
-    enabled: !!actor && !isFetching,
+    enabled: true,
   });
 
   const [prodDialogOpen, setProdDialogOpen] = useState(false);
@@ -1299,31 +1303,33 @@ function MarketPage() {
 
   const addProductMutation = useMutation({
     mutationFn: async () => {
-      if (!actor) throw new Error("कनेक्शन नहीं है, Page refresh करें");
+      const pid = String(Date.now());
       const productName = prodForm.farmerName.trim()
         ? `${prodForm.productName.trim()} (${prodForm.farmerName.trim()})`
         : prodForm.productName.trim();
-      return actor.addProduct(
-        productName,
-        prodForm.quantity.trim(),
-        prodForm.price.trim(),
-        "",
-        prodForm.phone.trim(),
-      );
-    },
-    onSuccess: () => {
-      const pid = String(Date.now());
-      const _productName = prodForm.farmerName.trim()
-        ? `${prodForm.productName.trim()} (${prodForm.farmerName.trim()})`
-        : prodForm.productName.trim();
-      sheetdbAdd({
+      await sheetdbAdd({
         type: "product",
         id: pid,
         name: prodForm.farmerName.trim(),
         product: prodForm.productName.trim(),
-        rate: prodForm.price,
-        mobile: prodForm.phone,
-      }).catch(() => {});
+        rate: prodForm.price.trim(),
+        mobile: prodForm.phone.trim(),
+        matra: prodForm.quantity.trim(),
+      });
+      if (actor) {
+        actor
+          .addProduct(
+            productName,
+            prodForm.quantity.trim(),
+            prodForm.price.trim(),
+            "",
+            prodForm.phone.trim(),
+          )
+          .catch(() => {});
+      }
+      return pid;
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setProdForm({
         farmerName: "",
@@ -1341,21 +1347,16 @@ function MarketPage() {
     },
     onError: (err) => {
       console.error("addProduct error:", err);
-      if (!actor) {
-        toast.error("कनेक्शन नहीं है, Page refresh करें");
-      } else {
-        toast.error("उत्पाद जोड़ने में त्रुटि हुई, पुनः प्रयास करें");
-      }
+      toast.error("उत्पाद जोड़ने में त्रुटि हुई, पुनः प्रयास करें");
     },
   });
 
   const deleteProductMutation = useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.deleteProduct(id);
+      await sheetdbDeleteById("product", String(id));
+      if (actor) actor.deleteProduct(id).catch(() => {});
     },
-    onSuccess: (_data, id) => {
-      sheetdbDeleteById("product", String(id)).catch(() => {});
+    onSuccess: (_data, _id) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
@@ -1385,28 +1386,31 @@ function MarketPage() {
 
   const updateProductMutation = useMutation({
     mutationFn: async () => {
-      if (!actor || !editProdItem) throw new Error("कनेक्शन नहीं है");
+      if (!editProdItem) throw new Error("कोई उत्पाद नहीं चुना");
       const fullName = editProdForm.farmerName.trim()
         ? `${editProdForm.productName.trim()} (${editProdForm.farmerName.trim()})`
         : editProdForm.productName.trim();
-      return (actor as any).updateProduct(
-        editProdItem.id,
-        fullName,
-        editProdForm.quantity.trim(),
-        editProdForm.price.trim(),
-        "",
-        editProdForm.phone.trim(),
-      );
+      await sheetdbUpdateById("product", String(editProdItem.id), {
+        name: editProdForm.farmerName.trim(),
+        product: editProdForm.productName.trim(),
+        rate: editProdForm.price.trim(),
+        mobile: editProdForm.phone.trim(),
+        matra: editProdForm.quantity.trim(),
+      });
+      if (actor) {
+        (actor as any)
+          .updateProduct(
+            editProdItem.id,
+            fullName,
+            editProdForm.quantity.trim(),
+            editProdForm.price.trim(),
+            "",
+            editProdForm.phone.trim(),
+          )
+          .catch(() => {});
+      }
     },
     onSuccess: () => {
-      if (editProdItem) {
-        sheetdbUpdateById("product", String(editProdItem.id), {
-          name: editProdForm.farmerName.trim(),
-          product: editProdForm.productName.trim(),
-          rate: editProdForm.price,
-          mobile: editProdForm.phone,
-        }).catch(() => {});
-      }
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setEditProdOpen(false);
       setEditProdItem(null);
@@ -1428,23 +1432,22 @@ function MarketPage() {
   >({
     queryKey: ["transports"],
     queryFn: async () => {
-      if (!actor) return [];
-      const trans = await actor.getTransports();
-      if (trans.length === 0) {
-        const rows = await sheetdbGetAll("transport").catch(() => []);
+      const rows = await sheetdbGetAll("transport").catch(() => []);
+      if (rows.length > 0) {
         return rows.map((r: any) => ({
-          id: BigInt(r.id ?? 0),
+          id: BigInt(r.id ?? Date.now()),
           vehicleType: r.gaadi ?? "",
           departureTime: r.samay ?? "",
           destination: r.gantavya ?? "",
           availableSeats: BigInt(Number(r.seaten) || 0),
-          contactNumber: r.mobile ?? r.contact ?? "",
+          contactNumber: r.contact ?? r.mobile ?? "",
           addedAt: BigInt(0),
         })) as TransportEntry[];
       }
-      return trans;
+      if (!actor) return [];
+      return actor.getTransports().catch(() => []);
     },
-    enabled: !!actor && !isFetching,
+    enabled: true,
   });
 
   const [transDialogOpen, setTransDialogOpen] = useState(false);
@@ -1459,25 +1462,30 @@ function MarketPage() {
 
   const addTransportMutation = useMutation({
     mutationFn: async () => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.addTransport(
-        transForm.vehicleType.trim(),
-        transForm.departureTime.trim(),
-        transForm.destination.trim(),
-        BigInt(Number.parseInt(transForm.availableSeats) || 0),
-        transForm.phone.trim(),
-      );
+      const pid = String(Date.now());
+      await sheetdbAdd({
+        type: "transport",
+        id: pid,
+        gaadi: transForm.vehicleType.trim(),
+        samay: transForm.departureTime.trim(),
+        gantavya: transForm.destination.trim(),
+        seaten: transForm.availableSeats.trim(),
+        contact: transForm.phone.trim(),
+      });
+      if (actor) {
+        actor
+          .addTransport(
+            transForm.vehicleType.trim(),
+            transForm.departureTime.trim(),
+            transForm.destination.trim(),
+            BigInt(Number.parseInt(transForm.availableSeats) || 0),
+            transForm.phone.trim(),
+          )
+          .catch(() => {});
+      }
+      return pid;
     },
     onSuccess: () => {
-      sheetdbAdd({
-        type: "transport",
-        id: String(Date.now()),
-        gaadi: transForm.vehicleType,
-        samay: transForm.departureTime,
-        gantavya: transForm.destination,
-        seaten: transForm.availableSeats,
-        contact: transForm.phone,
-      }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ["transports"] });
       setTransForm({
         driverName: "",
@@ -1501,11 +1509,10 @@ function MarketPage() {
 
   const deleteTransportMutation = useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.deleteTransport(id);
+      await sheetdbDeleteById("transport", String(id));
+      if (actor) actor.deleteTransport(id).catch(() => {});
     },
-    onSuccess: (_data, id) => {
-      sheetdbDeleteById("transport", String(id)).catch(() => {});
+    onSuccess: (_data, _id) => {
       queryClient.invalidateQueries({ queryKey: ["transports"] });
     },
   });
@@ -1536,26 +1543,28 @@ function MarketPage() {
 
   const updateTransportMutation = useMutation({
     mutationFn: async () => {
-      if (!actor || !editTransItem) throw new Error("कनेक्शन नहीं है");
-      return (actor as any).updateTransport(
-        editTransItem.id,
-        editTransForm.vehicleType.trim(),
-        editTransForm.departureTime.trim(),
-        editTransForm.destination.trim(),
-        BigInt(editTransForm.availableSeats || "0"),
-        editTransForm.phone.trim(),
-      );
+      if (!editTransItem) throw new Error("कोई यातायात नहीं चुना");
+      await sheetdbUpdateById("transport", String(editTransItem.id), {
+        gaadi: editTransForm.vehicleType.trim(),
+        samay: editTransForm.departureTime.trim(),
+        gantavya: editTransForm.destination.trim(),
+        seaten: editTransForm.availableSeats.trim(),
+        contact: editTransForm.phone.trim(),
+      });
+      if (actor) {
+        (actor as any)
+          .updateTransport(
+            editTransItem.id,
+            editTransForm.vehicleType.trim(),
+            editTransForm.departureTime.trim(),
+            editTransForm.destination.trim(),
+            BigInt(editTransForm.availableSeats || "0"),
+            editTransForm.phone.trim(),
+          )
+          .catch(() => {});
+      }
     },
     onSuccess: () => {
-      if (editTransItem) {
-        sheetdbUpdateById("transport", String(editTransItem.id), {
-          gaadi: editTransForm.vehicleType,
-          samay: editTransForm.departureTime,
-          gantavya: editTransForm.destination,
-          seaten: editTransForm.availableSeats,
-          contact: editTransForm.phone,
-        }).catch(() => {});
-      }
       queryClient.invalidateQueries({ queryKey: ["transports"] });
       setEditTransOpen(false);
       setEditTransItem(null);
@@ -3885,10 +3894,8 @@ function PeoplePage() {
   const { data: people, isLoading } = useQuery<Person[]>({
     queryKey: ["persons"],
     queryFn: async () => {
-      if (!actor) return [];
-      const persons = await actor.getPersons();
-      if (persons.length === 0) {
-        const rows = await sheetdbGetAll("person").catch(() => []);
+      const rows = await sheetdbGetAll("person").catch(() => []);
+      if (rows.length > 0) {
         return rows.map((r: any) => ({
           name: r.name ?? "",
           profession: r.profession ?? "",
@@ -3896,30 +3903,36 @@ function PeoplePage() {
           description: r.description || undefined,
         })) as Person[];
       }
-      return persons;
+      if (!actor) return [];
+      return actor.getPersons().catch(() => []);
     },
-    enabled: !!actor && !actorLoading,
+    enabled: true,
   });
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      if (!actor) throw new Error("Actor not ready");
-      await actor.addPerson(
-        name.trim(),
-        profession.trim(),
-        phone.trim() || null,
-        description.trim() || null,
-      );
-    },
-    onSuccess: () => {
-      sheetdbAdd({
+      const pid = String(Date.now());
+      await sheetdbAdd({
         type: "person",
-        id: String(Date.now()),
+        id: pid,
         name: name.trim(),
         profession: profession.trim(),
         phone: phone.trim(),
         description: description.trim(),
-      }).catch(() => {});
+      });
+      if (actor) {
+        actor
+          .addPerson(
+            name.trim(),
+            profession.trim(),
+            phone.trim() || null,
+            description.trim() || null,
+          )
+          .catch(() => {});
+      }
+      return pid;
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["persons"] });
       setName("");
       setProfession("");
@@ -3929,11 +3942,7 @@ function PeoplePage() {
     },
     onError: (err) => {
       console.error("addPerson error:", err);
-      if (!actor) {
-        toast.error("कनेक्शन नहीं है, Page refresh करें");
-      } else {
-        toast.error("जानकारी सेव नहीं हो सकी, कृपया दोबारा प्रयास करें।");
-      }
+      toast.error("जानकारी सेव नहीं हो सकी, कृपया दोबारा प्रयास करें।");
     },
   });
 
@@ -3959,24 +3968,26 @@ function PeoplePage() {
 
   const updatePersonMutation = useMutation({
     mutationFn: async () => {
-      if (!actor || !editPersonItem) throw new Error("Actor not ready");
-      await (actor as any).updatePerson(
-        editPersonItem.name,
-        editPersonForm.name.trim(),
-        editPersonForm.profession.trim(),
-        editPersonForm.phone.trim() || null,
-        editPersonForm.description.trim() || null,
-      );
+      if (!editPersonItem) throw new Error("कोई व्यक्ति नहीं चुना");
+      await sheetdbUpdateById("person", editPersonItem.name, {
+        name: editPersonForm.name.trim(),
+        profession: editPersonForm.profession.trim(),
+        phone: editPersonForm.phone.trim(),
+        description: editPersonForm.description.trim(),
+      });
+      if (actor) {
+        (actor as any)
+          .updatePerson(
+            editPersonItem.name,
+            editPersonForm.name.trim(),
+            editPersonForm.profession.trim(),
+            editPersonForm.phone.trim() || null,
+            editPersonForm.description.trim() || null,
+          )
+          .catch(() => {});
+      }
     },
     onSuccess: () => {
-      if (editPersonItem) {
-        sheetdbUpdateById("person", editPersonItem.name, {
-          name: editPersonForm.name.trim(),
-          profession: editPersonForm.profession.trim(),
-          phone: editPersonForm.phone.trim(),
-          description: editPersonForm.description.trim(),
-        }).catch(() => {});
-      }
       queryClient.invalidateQueries({ queryKey: ["persons"] });
       setEditPersonOpen(false);
       setEditPersonItem(null);
@@ -3989,11 +4000,12 @@ function PeoplePage() {
 
   const deletePersonMutation = useMutation({
     mutationFn: async (personName: string) => {
-      if (!actor) throw new Error("Actor not ready");
-      await (actor as any).deletePerson(personName);
+      await sheetdbDeleteById("person", personName);
+      if (actor) {
+        (actor as any).deletePerson(personName).catch(() => {});
+      }
     },
-    onSuccess: (_data, personName) => {
-      sheetdbDeleteById("person", personName).catch(() => {});
+    onSuccess: (_data, _personName) => {
       queryClient.invalidateQueries({ queryKey: ["persons"] });
       toast.success("🗑️ जानकारी हटा दी गई!");
     },
@@ -4712,8 +4724,18 @@ export default function App() {
   >({
     queryKey: ["news"],
     queryFn: async () => {
+      const rows = await sheetdbGetAll("news").catch(() => []);
+      if (rows.length > 0) {
+        return rows.map((r: any) => ({
+          id: Number(r.id) || Date.now(),
+          title: r.title ?? "",
+          body: r.body ?? "",
+          date: r.date ?? "",
+          tag: r.tag ?? "सामान्य",
+        }));
+      }
       if (!actor) return INITIAL_NEWS;
-      const items = await (actor as any).getNews();
+      const items: any[] = await (actor as any).getNews().catch(() => []);
       const mapped = (items as any[]).map((n: any) => ({
         id: Number(n.id),
         title: n.title,
@@ -4721,22 +4743,9 @@ export default function App() {
         date: n.date,
         tag: n.tag,
       }));
-      if (mapped.length === 0) {
-        const rows = await sheetdbGetAll("news").catch(() => []);
-        if (rows.length > 0) {
-          return rows.map((r: any) => ({
-            id: Number(r.id) || 0,
-            title: r.title ?? "",
-            body: r.body ?? "",
-            date: r.date ?? "",
-            tag: r.tag ?? "सामान्य",
-          }));
-        }
-        return INITIAL_NEWS;
-      }
-      return mapped;
+      return mapped.length > 0 ? mapped : INITIAL_NEWS;
     },
-    enabled: !!actor && !isFetching,
+    enabled: true,
   });
 
   // Inject animation CSS
